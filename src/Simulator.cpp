@@ -69,8 +69,8 @@ void Simulator::draw()
     {
         robot->draw();
         if (!robot->isMaster_)
-        {                                                        // Correct member variable name
-            auto master_robot = robots_.find(robot->master_id_); // Correct member variable name
+        {
+            auto master_robot = robots_.find(robot->master_id_);
             if (master_robot != robots_.end())
             {
                 // Cast positions to float explicitly
