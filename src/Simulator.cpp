@@ -259,8 +259,11 @@ void Simulator::createOrDeleteRobots()
             // Define robot radius and colour here.
             float robot_radius = globals.ROBOT_RADIUS;
             // If i is even, robot is red, else blue.
-            Color robot_color = (i % 2 == 0) ? DARKBROWN : DARKBLUE;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
+            bool isMaster = (next_rid_ % 2 == 0); // for example, even ids are masters
+            Color robot_color = isMaster ? DARKBROWN : DARKBLUE;
+            int master_id = isMaster ? next_rid_ : next_rid_ - 1; // for example, each slave has the previous robot as master
+
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id));
         }
     }
     else if (globals.FORMATION == "junction")
@@ -285,7 +288,7 @@ void Simulator::createOrDeleteRobots()
             std::deque<Eigen::VectorXd> waypoints{starting, ending};
             float robot_radius = globals.ROBOT_RADIUS;
             Color robot_color = DARKGREEN;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
         }
 
         // Delete robots if out of bounds
@@ -323,7 +326,7 @@ void Simulator::createOrDeleteRobots()
             std::deque<Eigen::VectorXd> waypoints{starting, turning, ending};
             float robot_radius = globals.ROBOT_RADIUS;
             Color robot_color = ColorFromHSV(turn * 120., 1., 0.75);
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
         }
 
         // Delete robots if out of bounds
