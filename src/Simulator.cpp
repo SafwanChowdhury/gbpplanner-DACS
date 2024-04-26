@@ -64,13 +64,32 @@ void Simulator::draw()
     BeginMode3D(graphics->camera3d);
     // Draw Ground
     DrawModel(graphics->groundModel_, graphics->groundModelpos_, 1., WHITE);
-    // Draw Robots
-    for (auto [rid, robot] : robots_)
+    // Draw Robots and Lines between masters and slaves
+    for (auto &[rid, robot] : robots_)
+    {
         robot->draw();
+        if (!robot->isMaster_)
+        {                                                        // Correct member variable name
+            auto master_robot = robots_.find(robot->master_id_); // Correct member variable name
+            if (master_robot != robots_.end())
+            {
+                // Cast positions to float explicitly
+                Vector3 slave_position = {
+                    static_cast<float>(robot->position_(0)),
+                    static_cast<float>(robot->position_(2)),
+                    static_cast<float>(robot->position_(1))};
+                Vector3 master_position = {
+                    static_cast<float>(master_robot->second->position_(0)),
+                    static_cast<float>(master_robot->second->position_(2)),
+                    static_cast<float>(master_robot->second->position_(1))};
+                DrawLine3D(slave_position, master_position, DARKGRAY);
+            }
+        }
+    }
     EndMode3D();
     draw_info(clock_);
     EndDrawing();
-};
+}
 
 /*******************************************************************************/
 // Timestep loop of simulator.
