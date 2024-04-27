@@ -6,7 +6,7 @@
 #include <gbp/GBPCore.h>
 #include <gbp/Factor.h>
 #include <gbp/Variable.h>
-
+#include <Robot.h>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <raylib.h>
@@ -331,12 +331,30 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 // within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
 /********************************************************************************************/
 
-MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
-                                     float sigma, const Eigen::VectorXd &measurement,
-                                     double distance_threshold)
-    : Factor{f_id, r_id, variables, sigma, measurement}
+MasterSlaveFactor::MasterSlaveFactor(std::shared_ptr<Robot> robot, const std::vector<std::shared_ptr<Robot>> &robots)
+    : Factor(0, 0, std::vector<std::shared_ptr<Variable>>(), 1.0, Eigen::VectorXd()), robot_(robot), robots_(robots)
 {
-    factor_type_ = MASTERSLAVE_FACTOR;
-    this->distance_threshold_ = distance_threshold;
-    this->delta_jac = 1e-2;
-};
+    factor_type_ = MASTER_SLAVE_FACTOR;
+}
+
+Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
+{
+    Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
+    std::shared_ptr<Robot> master;
+    for (const auto &robot : robots_)
+    {
+        if (robot->rid_ == robot_->master_id_)
+        {
+            master = robot;
+            break;
+        }
+    }
+    // Calculate the Euclidean distance between the master and the current robot
+    if (master)
+    {
+        auto masterPos = master->getPosition();
+        auto robotPos = robot_->getPosition();
+        h(0) = sqrt(pow(masterPos(0) - robotPos(0), 2) + pow(masterPos(1) - robotPos(1), 2));
+    }
+    return h;
+}

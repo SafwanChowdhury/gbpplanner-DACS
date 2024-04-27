@@ -296,3 +296,8 @@ std::vector<int> Robot::getVariableTimesteps(int lookahead_horizon, int lookahea
 
     return var_list;
 };
+
+Eigen::VectorXd Robot::getPosition() const
+{
+    return position_; // Replace with the correct code if position_ is not the correct member
+}
