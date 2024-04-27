@@ -25,7 +25,8 @@ enum FactorType
     DEFAULT_FACTOR,
     DYNAMICS_FACTOR,
     INTERROBOT_FACTOR,
-    OBSTACLE_FACTOR
+    OBSTACLE_FACTOR,
+    MASTERSLAVE_FACTOR
 };
 /*****************************************************************************************/
 // Factor used in GBP
@@ -136,21 +137,21 @@ public:
     Eigen::MatrixXd h_func_(const Eigen::VectorXd &X);
 };
 
-class MasterSlaveDistanceFactor : public Factor
-{
-private:
-    int master_robot_id_;               // Master robot id
-    int slave_robot_id_;                // Slave robot id
-    Eigen::VectorXd measurement_;       // Measurement vector
-    Eigen::MatrixXd measurement_model_; // Measurement model
+/********************************************************************************************/
+// Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
+// within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
+/********************************************************************************************/
 
+class MasterSlaveFactor : public Factor
+{
 public:
-    // Constructor
-    MasterSlaveDistanceFactor(Simulator *sim, int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
-                              float sigma, const Eigen::VectorXd &measurement, int master_robot_id, int slave_robot_id)
-        : Factor(f_id, r_id, variables, sigma, measurement), master_robot_id_(master_robot_id), slave_robot_id_(slave_robot_id), measurement_(measurement)
-    {
-        // Set up the measurement model in the MasterSlaveDistanceFactor class
-        this->measurement_model_ = Eigen::MatrixXd::Identity(measurement.size(), measurement.size()) / (sigma * sigma);
-    }
+    double distance_threshold_;
+
+    MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
+                      float sigma, const Eigen::VectorXd &measurement,
+                      double distance_threshold);
+
+    Eigen::MatrixXd h_func_(const Eigen::VectorXd &X);
+    Eigen::MatrixXd J_func_(const Eigen::VectorXd &X);
+    bool skip_factor();
 };
