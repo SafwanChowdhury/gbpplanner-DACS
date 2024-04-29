@@ -358,3 +358,27 @@ Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
     }
     return h;
 }
+
+Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
+{
+    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(1, 2);
+    std::shared_ptr<Robot> master;
+    for (const auto &robot : robots_)
+    {
+        if (robot->rid_ == robot_->master_id_)
+        {
+            master = robot;
+            break;
+        }
+    }
+    // Calculate the Jacobian of the Euclidean distance between the master and the current robot
+    if (master)
+    {
+        auto masterPos = master->getPosition();
+        auto robotPos = robot_->getPosition();
+        double dist = sqrt(pow(masterPos(0) - robotPos(0), 2) + pow(masterPos(1) - robotPos(1), 2));
+        J(0, 0) = (masterPos(0) - robotPos(0)) / dist;
+        J(0, 1) = (masterPos(1) - robotPos(1)) / dist;
+    }
+    return J;
+}
