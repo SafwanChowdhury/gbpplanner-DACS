@@ -272,8 +272,10 @@ void Simulator::createOrDeleteRobots()
                                                                        {0.}};
 
             Eigen::VectorXd starting = (i % 2 == 0) ? centre + offset_from_centre_inner : centre + offset_from_centre_outer;
-            Eigen::VectorXd ending = (i % 2 == 0) ? centre - offset_from_centre_outer : centre - offset_from_centre_inner;
-            std::deque<Eigen::VectorXd> waypoints{starting, ending};
+            // Eigen::VectorXd ending = (i % 2 == 0) ? centre - offset_from_centre_outer : centre - offset_from_centre_inner;
+            Eigen::VectorXd ending = centre - offset_from_centre_outer;
+            std::deque<Eigen::VectorXd>
+                waypoints{starting, ending};
 
             // Define robot radius and colour here.
             float robot_radius = globals.ROBOT_RADIUS;
@@ -283,6 +285,11 @@ void Simulator::createOrDeleteRobots()
             int master_id = isMaster ? next_rid_ : next_rid_ - 1; // for example, each slave has the previous robot as master
 
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id));
+        }
+        // print to termimal for each robot its data
+        for (auto robot : robots_to_create)
+        {
+            print("Robot ID: ", robot->rid_, " Master ID: ", robot->master_id_, " Master: ", robot->isMaster_, " Position: ", robot->position_.transpose());
         }
     }
     else if (globals.FORMATION == "junction")

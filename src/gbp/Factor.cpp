@@ -254,13 +254,14 @@ Eigen::MatrixXd DynamicsFactor::J_func_(const Eigen::VectorXd &X)
 
 InterrobotFactor::InterrobotFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
                                    float sigma, const Eigen::VectorXd &measurement,
-                                   float robot_radius)
+                                   float robot_radius, bool isMaster)
     : Factor{f_id, r_id, variables, sigma, measurement}
 {
     factor_type_ = INTERROBOT_FACTOR;
     float eps = 0.2 * robot_radius;
     this->safety_distance_ = 2 * robot_radius + eps;
     this->delta_jac = 1e-2;
+    this->isMaster_ = isMaster;
 };
 
 Eigen::MatrixXd InterrobotFactor::h_func_(const Eigen::VectorXd &X)
@@ -330,55 +331,62 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 // Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
 // within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
 /********************************************************************************************/
-
-MasterSlaveFactor::MasterSlaveFactor(std::shared_ptr<Robot> robot, const std::vector<std::shared_ptr<Robot>> &robots)
-    : Factor(0, 0, std::vector<std::shared_ptr<Variable>>(), 1.0, Eigen::VectorXd()), robot_(robot), robots_(robots)
+class MasterSlaveFactor : public Factor
 {
-    factor_type_ = MASTER_SLAVE_FACTOR;
-}
+public:
+    std::shared_ptr<Robot> robot_;
+    const std::vector<std::shared_ptr<Robot>> &robots_;
 
-Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
-{
-    Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
-    std::shared_ptr<Robot> master;
-    for (const auto &robot : robots_)
+    MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
+                      float sigma, const Eigen::VectorXd &measurement,
+                      std::shared_ptr<Robot> robot, const std::vector<std::shared_ptr<Robot>> &robots)
+        : Factor(f_id, r_id, variables, sigma, measurement), robot_(robot), robots_(robots)
     {
-        if (robot->rid_ == robot_->master_id_)
+        factor_type_ = MASTER_SLAVE_FACTOR;
+    }
+
+    Eigen::MatrixXd h_func_(const Eigen::VectorXd &X) override
+    {
+        Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
+        std::shared_ptr<Robot> master = findMaster(robot_->master_id_);
+
+        if (master)
         {
-            master = robot;
-            break;
+            Eigen::VectorXd masterPos = master->getPosition();
+            Eigen::VectorXd robotPos = robot_->getPosition();
+            h(0) = (masterPos - robotPos).norm(); // Directly calculate Euclidean distance
         }
+        return h;
     }
-    // Calculate the Euclidean distance between the master and the current robot
-    if (master)
-    {
-        auto masterPos = master->getPosition();
-        auto robotPos = robot_->getPosition();
-        h(0) = sqrt(pow(masterPos(0) - robotPos(0), 2) + pow(masterPos(1) - robotPos(1), 2));
-    }
-    return h;
-}
 
-Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
-{
-    Eigen::MatrixXd J = Eigen::MatrixXd::Zero(1, 2);
-    std::shared_ptr<Robot> master;
-    for (const auto &robot : robots_)
+    Eigen::MatrixXd J_func_(const Eigen::VectorXd &X) override
     {
-        if (robot->rid_ == robot_->master_id_)
+        Eigen::MatrixXd J = Eigen::MatrixXd::Zero(1, robot_->getPosition().size());
+        std::shared_ptr<Robot> master = findMaster(robot_->master_id_);
+
+        if (master)
         {
-            master = robot;
-            break;
+            Eigen::VectorXd masterPos = master->getPosition();
+            Eigen::VectorXd robotPos = robot_->getPosition();
+            double dist = (masterPos - robotPos).norm();
+            if (dist > 0)
+            { // Prevent division by zero
+                J.row(0) = (robotPos - masterPos) / dist;
+            }
         }
+        return J;
     }
-    // Calculate the Jacobian of the Euclidean distance between the master and the current robot
-    if (master)
+
+private:
+    std::shared_ptr<Robot> findMaster(int master_id)
     {
-        auto masterPos = master->getPosition();
-        auto robotPos = robot_->getPosition();
-        double dist = sqrt(pow(masterPos(0) - robotPos(0), 2) + pow(masterPos(1) - robotPos(1), 2));
-        J(0, 0) = (masterPos(0) - robotPos(0)) / dist;
-        J(0, 1) = (masterPos(1) - robotPos(1)) / dist;
+        for (const auto &robot : robots_)
+        {
+            if (robot->rid_ == master_id)
+            {
+                return robot;
+            }
+        }
+        return nullptr; // Return nullptr if no master found (should not happen if IDs are correct)
     }
-    return J;
-}
+};

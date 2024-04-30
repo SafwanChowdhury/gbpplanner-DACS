@@ -178,7 +178,7 @@ void Robot::createInterrobotFactors(std::shared_ptr<Robot> other_robot)
 
         // Create the inter-robot factor
         Eigen::VectorXd z = Eigen::VectorXd::Zero(variables.front()->n_dofs_);
-        auto factor = std::make_shared<InterrobotFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_INTERROBOT, z, 0.5 * (this->robot_radius_ + other_robot->robot_radius_));
+        auto factor = std::make_shared<InterrobotFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_INTERROBOT, z, 0.5 * (this->robot_radius_ + other_robot->robot_radius_), this->isMaster_);
         factor->other_rid_ = other_robot->rid_;
         // Add factor the the variable's list of factors, as well as to the robot's list of factors
         for (auto var : factor->variables_)
