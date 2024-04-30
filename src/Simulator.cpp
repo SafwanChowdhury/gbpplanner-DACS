@@ -232,6 +232,36 @@ void Simulator::eventHandler()
     graphics->update_camera();
 }
 
+void Simulator::initializeMasterSlaveFactors(std::vector<std::shared_ptr<Robot>> &robots)
+{
+    for (auto &robot : robots)
+    {
+        if (!robot->isMaster_)
+        {
+            auto master_robot = std::find_if(robots.begin(), robots.end(),
+                                             [&](const std::shared_ptr<Robot> &r)
+                                             {
+                                                 return r->rid_ == robot->master_id_;
+                                             });
+
+            if (master_robot != robots.end())
+            {
+                // Assuming robots have synchronized variables and other conditions needed for factor creation
+                // Typically, you would use the horizon variables or similar for these kinds of factors
+                std::shared_ptr<Variable> slave_var = robot->getVar(-1);            // Assuming horizon variable
+                std::shared_ptr<Variable> master_var = (*master_robot)->getVar(-1); // Similarly for master
+
+                auto master_slave_factor = std::make_shared<MasterSlaveFactor>(
+                    this->next_fid_++, robot->rid_, {slave_var, master_var}, globals.SIGMA_FACTOR_OBSTACLE, Eigen::VectorXd::Zero(1), robot, robots // Assuming robots is a std::vector<std::shared_ptr<Robot>> visible in this scope
+                );
+                // Add factor to variables involved in both master and slave robots
+                slave_var->add_factor(master_slave_factor);
+                master_var->add_factor(master_slave_factor);
+            }
+        }
+    }
+}
+
 /*******************************************************************************/
 // Create new robots if needed. Handles deletion of robots out of bounds.
 // New formations must modify the vectors "robots to create" and optionally "robots_to_delete"
@@ -316,7 +346,6 @@ void Simulator::createOrDeleteRobots()
             Color robot_color = DARKGREEN;
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
         }
-
         // Delete robots if out of bounds
         for (auto [rid, robot] : robots_)
         {
@@ -375,6 +404,7 @@ void Simulator::createOrDeleteRobots()
         robot_positions_[robot->rid_] = std::vector<double>{robot->waypoints_[0](0), robot->waypoints_[0](1)};
         robots_[robot->rid_] = robot;
     };
+    initializeMasterSlaveFactors(robots_to_create);
     for (auto robot : robots_to_delete)
     {
         deleteRobot(robot);
