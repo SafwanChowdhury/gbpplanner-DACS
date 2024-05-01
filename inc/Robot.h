@@ -69,7 +69,7 @@ public:
     void createInterrobotFactors(std::shared_ptr<Robot> other_robot);
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
 
-    void createMasterSlaveFactors(std::shared_ptr<Robot> master_robot);
+    void createMasterSlaveFactors();
     void updateMasterSlaveFactor();
     /***************************************************************************************************/
     // Drawing function

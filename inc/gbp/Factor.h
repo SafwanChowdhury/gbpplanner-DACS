@@ -151,7 +151,7 @@ public:
                       std::shared_ptr<Robot> robot, std::shared_ptr<Robot> master_robot);
 
     Eigen::MatrixXd h_func_(const Eigen::VectorXd &X) override;
-    Eigen::MatrixXd J_func_(const Eigen::VectorXd &X) override;
+    // Eigen::MatrixXd J_func_(const Eigen::VectorXd &X) override;
 
 private:
     std::shared_ptr<Robot> robot_;
