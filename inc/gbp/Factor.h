@@ -148,14 +148,12 @@ class MasterSlaveFactor : public Factor
 public:
     MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
                       float sigma, const Eigen::VectorXd &measurement,
-                      std::shared_ptr<Robot> robot, const std::vector<std::shared_ptr<Robot>> &robots);
+                      std::shared_ptr<Robot> robot, std::shared_ptr<Robot> master_robot);
 
     Eigen::MatrixXd h_func_(const Eigen::VectorXd &X) override;
     Eigen::MatrixXd J_func_(const Eigen::VectorXd &X) override;
 
 private:
     std::shared_ptr<Robot> robot_;
-    const std::vector<std::shared_ptr<Robot>> &robots_;
-
-    std::shared_ptr<Robot> findMaster(int master_id);
+    std::shared_ptr<Robot> master_;
 };

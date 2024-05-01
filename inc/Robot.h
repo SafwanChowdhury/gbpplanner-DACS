@@ -23,7 +23,7 @@ extern Globals globals;
 //      - Colour
 // This is a derived class from the FactorGraph class
 /***************************************************************************/
-class Robot : public FactorGraph
+class Robot : public FactorGraph, public std::enable_shared_from_this<Robot>
 {
 public:
     // Constructor
@@ -69,6 +69,8 @@ public:
     void createInterrobotFactors(std::shared_ptr<Robot> other_robot);
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
 
+    void createMasterSlaveFactors(std::shared_ptr<Robot> master_robot);
+    void updateMasterSlaveFactor();
     /***************************************************************************************************/
     // Drawing function
     /***************************************************************************************************/

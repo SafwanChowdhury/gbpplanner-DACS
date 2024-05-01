@@ -271,7 +271,7 @@ Eigen::MatrixXd InterrobotFactor::h_func_(const Eigen::VectorXd &X)
     X_diff += 1e-6 * r_id_ * Eigen::VectorXd::Ones(n_dofs_ / 2);
 
     double r = X_diff.norm();
-    if (r <= safety_distance_ && isMaster_ == true)
+    if (r <= safety_distance_)
     {
         this->skip_flag = false;
         h(0) = 1.f * (1 - r / safety_distance_);
@@ -290,7 +290,7 @@ Eigen::MatrixXd InterrobotFactor::J_func_(const Eigen::VectorXd &X)
     Eigen::VectorXd X_diff = X(seqN(0, n_dofs_ / 2)) - X(seqN(n_dofs_, n_dofs_ / 2));
     X_diff += 1e-6 * r_id_ * Eigen::VectorXd::Ones(n_dofs_ / 2); // Add a tiny random offset to avoid div/0 errors
     double r = X_diff.norm();
-    if (r <= safety_distance_ && isMaster_ == true)
+    if (r <= safety_distance_)
     {
         J(0, seqN(0, n_dofs_ / 2)) = -1.f / safety_distance_ / r * X_diff;
         J(0, seqN(n_dofs_, n_dofs_ / 2)) = 1.f / safety_distance_ / r * X_diff;
@@ -331,10 +331,14 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 // Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
 // within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
 /********************************************************************************************/
+/********************************************************************************************/
+// Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
+// within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
+/********************************************************************************************/
 MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
                                      float sigma, const Eigen::VectorXd &measurement,
-                                     std::shared_ptr<Robot> robot, const std::vector<std::shared_ptr<Robot>> &robots)
-    : Factor(f_id, r_id, variables, sigma, measurement), robot_(robot), robots_(robots)
+                                     std::shared_ptr<Robot> robot, std::shared_ptr<Robot> master_robot)
+    : Factor(f_id, r_id, variables, sigma, measurement), robot_(robot), master_(master_robot)
 {
     factor_type_ = MASTER_SLAVE_FACTOR;
 }
@@ -342,11 +346,9 @@ MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared
 Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
-    std::shared_ptr<Robot> master = findMaster(robot_->master_id_);
-
-    if (master)
+    if (master_)
     {
-        Eigen::VectorXd masterPos = master->getPosition();
+        Eigen::VectorXd masterPos = master_->getPosition();
         Eigen::VectorXd robotPos = robot_->getPosition();
         h(0) = (masterPos - robotPos).norm(); // Directly calculate Euclidean distance
     }
@@ -356,11 +358,9 @@ Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
 Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(1, robot_->getPosition().size());
-    std::shared_ptr<Robot> master = findMaster(robot_->master_id_);
-
-    if (master)
+    if (master_)
     {
-        Eigen::VectorXd masterPos = master->getPosition();
+        Eigen::VectorXd masterPos = master_->getPosition();
         Eigen::VectorXd robotPos = robot_->getPosition();
         double dist = (masterPos - robotPos).norm();
         if (dist > 0)
@@ -369,16 +369,4 @@ Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
         }
     }
     return J;
-}
-
-std::shared_ptr<Robot> MasterSlaveFactor::findMaster(int master_id)
-{
-    for (const auto &robot : robots_)
-    {
-        if (robot->rid_ == master_id)
-        {
-            return robot;
-        }
-    }
-    return nullptr; // Return nullptr if no master found (should not happen if IDs are correct)
 }

@@ -301,3 +301,42 @@ Eigen::VectorXd Robot::getPosition() const
 {
     return position_; // Replace with the correct code if position_ is not the correct member
 }
+
+/***************************************************************************************************/
+// Create master-slave factors between this robot (slave) and another robot (master)
+/***************************************************************************************************/
+void Robot::createMasterSlaveFactors(std::shared_ptr<Robot> master_robot)
+{
+    // Create MasterSlave factors for all timesteps excluding current state
+    for (int i = 1; i < num_variables_; i++)
+    {
+        // Get variables
+        std::vector<std::shared_ptr<Variable>> variables{getVar(i), master_robot->getVar(i)};
+
+        // Create the master-slave factor
+        Eigen::VectorXd z = Eigen::VectorXd::Zero(variables.front()->n_dofs_);
+        auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z, shared_from_this(), master_robot);
+        factor->other_rid_ = master_robot->rid_;
+        // Add factor to the variable's list of factors, as well as to the robot's list of factors
+        for (auto var : factor->variables_)
+            var->add_factor(factor);
+        this->factors_[factor->key_] = factor;
+    }
+};
+
+/***************************************************************************************************/
+// For new neighbours of a robot, create master-slave factors if they don't exist.
+/***************************************************************************************************/
+void Robot::updateMasterSlaveFactor()
+{
+    // Search through neighbours. If any are not in currently connected rids, create master-slave factors.
+    for (auto rid : neighbours_)
+    {
+        if (std::find(connected_r_ids_.begin(), connected_r_ids_.end(), rid) == connected_r_ids_.end())
+        {
+            createMasterSlaveFactors(sim_->robots_.at(rid));
+            this->connected_r_ids_.push_back(rid);                   // Record the connection
+            sim_->robots_.at(rid)->connected_r_ids_.push_back(rid_); // Reciprocate the connection if needed
+        }
+    }
+}

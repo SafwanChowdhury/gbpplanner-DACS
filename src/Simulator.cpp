@@ -272,8 +272,8 @@ void Simulator::createOrDeleteRobots()
                                                                        {0.}};
 
             Eigen::VectorXd starting = (i % 2 == 0) ? centre + offset_from_centre_inner : centre + offset_from_centre_outer;
-            // Eigen::VectorXd ending = (i % 2 == 0) ? centre - offset_from_centre_outer : centre - offset_from_centre_inner;
-            Eigen::VectorXd ending = centre - offset_from_centre_outer;
+            Eigen::VectorXd ending = (i % 2 == 0) ? centre - offset_from_centre_inner : centre - offset_from_centre_outer;
+            // Eigen::VectorXd ending = centre - offset_from_centre_outer;
             std::deque<Eigen::VectorXd>
                 waypoints{starting, ending};
 
