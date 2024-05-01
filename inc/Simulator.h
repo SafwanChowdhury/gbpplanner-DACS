@@ -7,13 +7,11 @@
 #include <map>
 #include <memory>
 #include <algorithm>
-
 #include <Utils.h>
 #include <gbp/GBPCore.h>
 #include <Graphics.h>
 #include <gbp/Variable.h>
 #include <nanoflann.h>
-#include <gbp/Factor.h>
 #include <raylib.h>
 #include <rlights.h>
 #include <nanoflann.h>
@@ -85,8 +83,6 @@ public:
     // (Updates the neighbours_ of a robot)
     /*******************************************************************************/
     void calculateRobotNeighbours(std::map<int, std::shared_ptr<Robot>> &robots);
-
-    void initializeMasterSlaveFactors(std::vector<std::shared_ptr<Robot>> &robots_);
 
     /*******************************************************************************/
     // Handles keypresses and mouse input, and updates camera.
