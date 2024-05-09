@@ -314,6 +314,8 @@ void Simulator::createOrDeleteRobots()
             std::deque<Eigen::VectorXd> waypoints{starting, ending};
             float robot_radius = globals.ROBOT_RADIUS;
             Color robot_color = DARKGREEN;
+            int master_id = -1;
+            bool isMaster = true;
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
         }
         // Delete robots if out of bounds
@@ -351,9 +353,49 @@ void Simulator::createOrDeleteRobots()
             std::deque<Eigen::VectorXd> waypoints{starting, turning, ending};
             float robot_radius = globals.ROBOT_RADIUS;
             Color robot_color = ColorFromHSV(turn * 120., 1., 0.75);
+            int master_id = -1;
+            bool isMaster = true;
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
         }
 
+        // Delete robots if out of bounds
+        for (auto [rid, robot] : robots_)
+        {
+            if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
+            {
+                robots_to_delete.push_back(robot);
+            }
+        }
+    }
+    else if (globals.FORMATION == "grid")
+    {
+        // Robots in a grid style city. There is only one-way traffic, and no turning.
+        new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
+        if (clock_ % 20 == 0)
+        { // Arbitrary condition on the simulation time to create new robots
+            // EDIT THIS FOR GRID MAP
+            int n_roads = 2;
+            int road = random_int(0, n_roads - 1);
+            Eigen::Matrix4d rot;
+            rot.setZero();
+            rot.topLeftCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
+            rot.bottomRightCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
+
+            int n_lanes = 2;
+            int lane = random_int(0, n_lanes - 1);
+            double lane_width = 4. * globals.ROBOT_RADIUS;
+            double lane_v_offset = (0.5 * (1 - n_lanes) + lane) * lane_width;
+            starting = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., lane_v_offset, globals.MAX_SPEED, 0.}};
+            ending = rot * Eigen::VectorXd{{(double)globals.WORLD_SZ, lane_v_offset, 0., 0.}};
+            std::deque<Eigen::VectorXd> waypoints{starting, ending};
+            // END COMMENT
+
+            float robot_radius = globals.ROBOT_RADIUS;
+            Color robot_color = DARKGREEN;
+            int master_id = -1;
+            bool isMaster = true;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
+        }
         // Delete robots if out of bounds
         for (auto [rid, robot] : robots_)
         {
