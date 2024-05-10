@@ -332,6 +332,7 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 // within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
 /********************************************************************************************/
 
+int temp = 0;
 MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
                                      float sigma, const Eigen::VectorXd &measurement)
     : Factor(f_id, r_id, variables, sigma, measurement)
@@ -343,12 +344,21 @@ Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
     h(0) = (X({0, 1}) - X({4, 5})).norm();
+    if (h(0) > 20)
+        h(0) = 20;
+    // if (r_id_ == 3 and temp < 1000)
+    // {
+    //     temp += 1;
+    //     printf("h: %f, x: %f, y: %f\n", h(0), X(0), X(1));
+    // }
     return h;
 }
 
 Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd J = jacobianFirstOrder(X);
+    // J.col(0) = Eigen::VectorXd::Zero(1);
+    // J.col(1) = Eigen::VectorXd::Zero(1);
     J.col(4) = Eigen::VectorXd::Zero(1);
     J.col(5) = Eigen::VectorXd::Zero(1);
     return J;

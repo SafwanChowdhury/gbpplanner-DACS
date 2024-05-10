@@ -26,7 +26,7 @@ FactorGraph::FactorGraph(int robot_id) : robot_id_(robot_id){};
 /******************************************************************************************************/
 void FactorGraph::factorIteration(MsgPassingMode msg_passing_mode)
 {
-    // #pragma omp parallel for
+#pragma omp parallel for
     for (int f_idx = 0; f_idx < factors_.size(); f_idx++)
     {
         auto f_it = factors_.begin();
@@ -62,7 +62,7 @@ void FactorGraph::factorIteration(MsgPassingMode msg_passing_mode)
 /******************************************************************************************************/
 void FactorGraph::variableIteration(MsgPassingMode msg_passing_mode)
 {
-    // #pragma omp parallel for
+#pragma omp parallel for
     for (int v_idx = 0; v_idx < variables_.size(); v_idx++)
     {
         auto v_it = variables_.begin();

@@ -35,7 +35,7 @@ void iterateGBP(int n_iters, MsgPassingMode msg_passing_mode, std::map<int, std:
 {
     for (int i = 0; i < n_iters; i++)
     {
-        // #pragma omp parallel for
+#pragma omp parallel for
         // Iterate through robots
         for (int r_idx = 0; r_idx < factorgraphs.size(); r_idx++)
         {
@@ -45,7 +45,7 @@ void iterateGBP(int n_iters, MsgPassingMode msg_passing_mode, std::map<int, std:
             factorgraph->factorIteration(msg_passing_mode);
         }
 
-        // #pragma omp parallel for
+#pragma omp parallel for
         // Iterate through robots
         for (int r_idx = 0; r_idx < factorgraphs.size(); r_idx++)
         {
