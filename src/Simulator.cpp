@@ -76,12 +76,13 @@ void Simulator::draw()
                 // Cast positions to float explicitly
                 Vector3 slave_position = {
                     static_cast<float>(robot->position_(0)),
-                    static_cast<float>(robot->position_(2)),
+                    static_cast<float>(robot->height_3D_),
                     static_cast<float>(robot->position_(1))};
                 Vector3 master_position = {
                     static_cast<float>(master_robot->second->position_(0)),
-                    static_cast<float>(master_robot->second->position_(2)),
+                    static_cast<float>(master_robot->second->height_3D_),
                     static_cast<float>(master_robot->second->position_(1))};
+                // print(rid, robot->position_.transpose().eval(), master_robot->second->position_.transpose().eval());
                 DrawLine3D(slave_position, master_position, DARKGRAY);
             }
         }
@@ -415,7 +416,8 @@ void Simulator::createOrDeleteRobots()
     {
         robot_positions_[robot->rid_] = std::vector<double>{robot->waypoints_[0](0), robot->waypoints_[0](1)};
         robots_[robot->rid_] = robot;
-        robot->createMasterSlaveFactors();
+        if (!robot->isMaster_)
+            robot->createMasterSlaveFactors();
     };
     for (auto robot : robots_to_delete)
     {

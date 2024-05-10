@@ -307,25 +307,22 @@ Eigen::VectorXd Robot::getPosition() const
 /***************************************************************************************************/
 void Robot::createMasterSlaveFactors()
 {
-    if (!this->isMaster_ && sim_->robots_.count(master_id_))
-    { // Check if it's a slave and master exists
-        std::shared_ptr<Robot> master_robot = sim_->robots_.at(master_id_);
-        // Create MasterSlave factors for all timesteps excluding current state
-        for (int i = 1; i < num_variables_; i++)
-        {
-            // Get variables
-            std::vector<std::shared_ptr<Variable>> variables{getVar(i), master_robot->getVar(i)};
+    std::shared_ptr<Robot> master_robot = sim_->robots_.at(master_id_);
+    // Create MasterSlave factors for all timesteps excluding current state
+    for (int i = 1; i < num_variables_; i++)
+    {
+        // Get variables
+        std::vector<std::shared_ptr<Variable>> variables{getVar(i), master_robot->getVar(i)};
 
-            // Create the master-slave factor
-            Eigen::VectorXd z = Eigen::VectorXd::Zero(variables.front()->n_dofs_);
+        // Create the master-slave factor
+        Eigen::VectorXd z = Eigen::VectorXd::Zero(1);
 
-            auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z, shared_from_this(), master_robot);
-            factor->other_rid_ = master_robot->rid_;
+        auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z);
+        factor->other_rid_ = master_robot->rid_;
 
-            // Add factor to the variable's list of factors, as well as to the robot's list of factors
-            for (auto var : factor->variables_)
-                var->add_factor(factor);
-            this->factors_[factor->key_] = factor;
-        }
+        // Add factor to the variable's list of factors, as well as to the robot's list of factors
+        for (auto var : factor->variables_)
+            var->add_factor(factor);
+        this->factors_[factor->key_] = factor;
     }
 }

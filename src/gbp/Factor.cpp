@@ -333,39 +333,23 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 /********************************************************************************************/
 
 MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
-                                     float sigma, const Eigen::VectorXd &measurement,
-                                     std::shared_ptr<Robot> robot, std::shared_ptr<Robot> master_robot)
-    : Factor(f_id, r_id, variables, sigma, measurement), robot_(robot), master_(master_robot)
+                                     float sigma, const Eigen::VectorXd &measurement)
+    : Factor(f_id, r_id, variables, sigma, measurement)
 {
-    printf("MasterSlaveFactor created for robot %d connected to master %d\n", r_id, master_robot->rid_);
     factor_type_ = MASTER_SLAVE_FACTOR;
 }
 
 Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
-    if (master_)
-    {
-        Eigen::VectorXd masterPos = master_->getPosition();
-        Eigen::VectorXd robotPos = robot_->getPosition();
-        printf("Robot %d at [%f, %f] connected to master %d at [%f, %f]\n", robot_->rid_, robotPos(0), robotPos(1), master_->rid_, masterPos(0), masterPos(1));
-        h(0) = (masterPos - robotPos).norm(); // Directly calculate Euclidean distance
-    }
+    h(0) = (X({0, 1}) - X({4, 5})).norm();
     return h;
 }
 
-// Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
-// {
-//     Eigen::MatrixXd J = Eigen::MatrixXd::Zero(1, robot_->getPosition().size());
-//     if (master_)
-//     {
-//         Eigen::VectorXd masterPos = master_->getPosition();
-//         Eigen::VectorXd robotPos = robot_->getPosition();
-//         double dist = (masterPos - robotPos).norm();
-//         if (dist > 0)
-//         { // Prevent division by zero
-//             J.row(0) = (robotPos - masterPos) / dist;
-//         }
-//     }
-//     return J;
-// }
+Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
+{
+    Eigen::MatrixXd J = jacobianFirstOrder(X);
+    J.col(4) = Eigen::VectorXd::Zero(1);
+    J.col(5) = Eigen::VectorXd::Zero(1);
+    return J;
+}
