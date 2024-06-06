@@ -334,23 +334,22 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
 
 int temp = 0;
 MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
-                                     float sigma, const Eigen::VectorXd &measurement)
+                                     float sigma, const Eigen::VectorXd &measurement, float min_distance, float max_distance)
     : Factor(f_id, r_id, variables, sigma, measurement)
 {
     factor_type_ = MASTER_SLAVE_FACTOR;
+    this->min_distance_ = min_distance;
+    this->max_distance_ = max_distance;
 }
 
 Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
 {
     Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
     h(0) = (X({0, 1}) - X({4, 5})).norm();
-    if (h(0) > 20)
-        h(0) = 20;
-    // if (r_id_ == 3 and temp < 1000)
-    // {
-    //     temp += 1;
-    //     printf("h: %f, x: %f, y: %f\n", h(0), X(0), X(1));
-    // }
+    if (h(0) > max_distance_)
+        h(0) = max_distance_; // Energy is capped if within max distance
+    if (h(0) < min_distance_)
+        h(0) = min_distance_ - h(0); // Negative energy if too close
     return h;
 }
 
@@ -359,7 +358,7 @@ Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
     Eigen::MatrixXd J = jacobianFirstOrder(X);
     // J.col(0) = Eigen::VectorXd::Zero(1);
     // J.col(1) = Eigen::VectorXd::Zero(1);
-    J.col(4) = Eigen::VectorXd::Zero(1);
-    J.col(5) = Eigen::VectorXd::Zero(1);
+    J.col(4) = Eigen::VectorXd::Zero(0);
+    J.col(5) = Eigen::VectorXd::Zero(0);
     return J;
 }

@@ -317,7 +317,7 @@ void Robot::createMasterSlaveFactors()
         // Create the master-slave factor
         Eigen::VectorXd z = Eigen::VectorXd::Zero(1);
 
-        auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z);
+        auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z, globals.MIN_DISTANCE, globals.MAX_DISTANCE);
         factor->other_rid_ = master_robot->rid_;
 
         // Add factor to the variable's list of factors, as well as to the robot's list of factors
