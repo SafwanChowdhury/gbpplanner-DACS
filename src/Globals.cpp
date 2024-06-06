@@ -44,6 +44,11 @@ void Globals::parse_global_args(std::ifstream &config_file)
     SIGMA_FACTOR_INTERROBOT = j["SIGMA_FACTOR_INTERROBOT"];
     SIGMA_FACTOR_OBSTACLE = j["SIGMA_FACTOR_OBSTACLE"];
     SIGMA_FACTOR_MASTERSLAVE = j["SIGMA_FACTOR_MASTERSLAVE"];
+
+    // Convoy Parameters
+    MIN_DISTANCE = j["MIN_DISTANCE"];
+    MAX_DISTANCE = j["MAX_DISTANCE"];
+
     NUM_ITERS = j["NUM_ITERS"];
 }
 

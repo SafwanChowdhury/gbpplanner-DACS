@@ -147,8 +147,9 @@ class MasterSlaveFactor : public Factor
 {
 public:
     MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
-                      float sigma, const Eigen::VectorXd &measurement);
-
+                      float sigma, const Eigen::VectorXd &measurement, float min_distance, float max_distance);
+    float min_distance_;
+    float max_distance_;
     Eigen::MatrixXd h_func_(const Eigen::VectorXd &X);
     Eigen::MatrixXd J_func_(const Eigen::VectorXd &X);
 };

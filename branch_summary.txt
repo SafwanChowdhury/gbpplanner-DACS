@@ -1,0 +1,47 @@
+Branch Summary for 'your-branch'
+====================================
+Commits Summary:
+------------------------------------
+8b0864c - Safwan Chowdhury, 4 days ago : experimenting with max speed
+ec6d7f8 - Safwan Chowdhury, 2 weeks ago : Hard limited the h value to prevent excess energy, this seems to have solved the issue of distant spawning dots but is only a temporary fix. Main issue still needs to be identified. Theory is that they are basing energy off of x0 y0.
+e8ef048 - Safwan Chowdhury, 2 weeks ago : correction to previous. anything above 6 robots does not work , it does not follow the same pattern
+83b8997 - Safwan Chowdhury, 2 weeks ago : Latest experimentation seems to show that the number of robots is directly tied to the SIGMA_FACTOR_MASTERSLAVE. so if ther number of robots is 2 then sigma can be 1 if 4 then sigma needs to be 0.8 if 6 then sigma 0.6 and so on
+3c32451 - Safwan Chowdhury, 2 weeks ago : convoy working for 2 robots
+b68bb6f - Safwan Chowdhury, 2 weeks ago : grid
+6d9c313 - Safwan Chowdhury, 4 weeks ago : found seg fault with the jacobian function for the MasterSlaveFactor. Removed J_func but now dots have disappeared completely. Master slave connections have been successfully demonstrated but need to be refined
+9da955c - Safwan Chowdhury, 4 weeks ago : Add SIGMA_FACTOR_MASTERSLAVE parameter to circle_cluttered.json
+5c26db2 - Safwan Chowdhury, 4 weeks ago : restore previous state
+86b20dc - Safwan Chowdhury, 4 weeks ago : error in compilation
+7a18fab - Safwan Chowdhury, 4 weeks ago : updated some simulator parameters and updated factor
+5ffcd26 - Safwan Chowdhury, 4 weeks ago : updated to include jacobian
+348da6f - Safwan Chowdhury, 4 weeks ago : Group movement achieved!!!
+396b099 - Safwan Chowdhury, 4 weeks ago : updated factor.h and factor.cpp with master-slave scaffolding
+04ae254 - Safwan Chowdhury, 4 weeks ago : Refactor robot creation logic in Simulator.cpp to include master-slave relationship
+be7fc65 - Safwan Chowdhury, 4 weeks ago : Fix member variable names in Simulator.cpp
+3b22c30 - Safwan Chowdhury, 4 weeks ago : draw lines between master and slave
+669b81a - Safwan Chowdhury, 4 weeks ago : Refactor robot creation logic in Simulator.cpp to include master-slave relationship
+76b633d - Safwan Chowdhury, 4 weeks ago : Simulator now has 2 circles with outer and inner robots in the circle.
+fd719ce - aalok, 7 months ago : fix faulty eigen submodule remnant
+e657977 - aalok, 7 months ago : Merge branch 'main' of https://github.com/aalpatya/gbpplanner into main
+78d9a8d - aalok, 7 months ago : change gbp/Factor.cpp to allow for a factor connecting to two variables of each a different num dimensions
+8213280 - aalpatya, 8 months ago : Update README.md
+6fa2798 - aalok, 8 months ago : Merge branch 'main' of https://github.com/aalpatya/gbpplanner into main
+58ff92d - aalok, 8 months ago : Update License, create_distance_fieldpy can be used directly with input argument
+6548bd7 - aalpatya, 8 months ago : Update README.md
+66afdff - aalok, 8 months ago : add tiny 1e-6 random offset for inter-robot factor to avoid div-by-zero error
+6479b39 - aalpatya, 8 months ago : Update CMakeLists.txt
+653d5f2 - aalpatya, 8 months ago : Update README.md
+084c94e - aalok, 8 months ago : added gifs
+c9ae080 - aalpatya, 8 months ago : Update README.md
+181662b - aalpatya, 8 months ago : Update README.md
+979e734 - aalok, 8 months ago : updated readme
+c463cd6 - aalok, 8 months ago : README was modified Merge branch 'main' of https://github.com/aalpatya/gbpplanner into main
+88ca97c - aalok, 8 months ago : Added example configs and copyright notices
+28f2e15 - aalpatya, 8 months ago : Update README.md
+791f13f - aalpatya, 8 months ago : Update README.md
+97d8fd8 - aalpatya, 8 months ago : Update README.md
+cea119d - aalok, 8 months ago : Add raylib as a submodule
+011eac2 - aalok, 8 months ago : initial commit without raylib
+03ac88d - aalpatya, 8 months ago : Initial commit
+Code Changes Summary:
+------------------------------------
