@@ -53,6 +53,7 @@ public:
     uint32_t clock_ = 0;                           // Simulation clock (timesteps)
     std::map<int, std::shared_ptr<Robot>> robots_; // Map containing smart pointers to all robots, accessed by their rid.
     bool new_robots_needed_ = true;                // Whether or not to create new robots. (Some formations are dynamicaly changing)
+    bool leader_init_ = false;                     // Whether or not the leader has been initialised
     bool symmetric_factors = false;                // If true, when inter-robot factors need to be created between two robots,
                                                    // a pair of factors is created (one belonging to each robot). This becomes a redundancy.
 
