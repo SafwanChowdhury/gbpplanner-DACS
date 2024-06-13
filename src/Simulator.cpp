@@ -233,6 +233,14 @@ void Simulator::eventHandler()
     graphics->update_camera();
 }
 
+double random_double(double min, double max)
+{
+    double random = ((double)rand()) / (double)RAND_MAX;
+    double diff = max - min;
+    double r = random * diff;
+    return min + r;
+}
+
 /*******************************************************************************/
 // Create new robots if needed. Handles deletion of robots out of bounds.
 // New formations must modify the vectors "robots to create" and optionally "robots_to_delete"
@@ -409,37 +417,140 @@ void Simulator::createOrDeleteRobots()
     {
         // Robots in a grid style city. There is only one-way traffic, and no turning.
         new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
-        if (clock_ % 20 == 0)
+        if (clock_ % 40 == 0)
         { // Arbitrary condition on the simulation time to create new robots
-            // EDIT THIS FOR GRID MAP
-            int n_roads = 2;
-            int road = random_int(0, n_roads - 1);
+            // Assuming the grid is defined as a 2D array or list
+            std::vector<std::vector<int>> grid = {
+                {1, 1, 0, 0},
+                {1, 0, 1, 1},
+                {0, 1, 1, 0},
+                {1, 1, 0, 1}};
+
+            int n_roads = grid.size() * grid[0].size(); // Total possible roads
+            int road_index = random_int(0, n_roads - 1);
+            int row = road_index / grid[0].size();
+            int col = road_index % grid[0].size();
+
+            // Define cell size; this should be based on your grid configuration
+            double cell_size = 10.0;               // Adjust cell size according to your grid dimensions
+            int n_lanes = 2;                       // Define number of lanes
+            int lane = random_int(0, n_lanes - 1); // Randomly choose a lane
+
+            // Determine road orientation and position
             Eigen::Matrix4d rot;
             rot.setZero();
-            rot.topLeftCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
-            rot.bottomRightCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
+            if (grid[row][col] == 1)
+            { // Horizontal road
+                rot.topLeftCorner(2, 2) << 1, 0, 0, 1;
+                rot.bottomRightCorner(2, 2) << 1, 0, 0, 1;
+            }
+            else
+            { // Vertical road
+                rot.topLeftCorner(2, 2) << 0, -1, 1, 0;
+                rot.bottomRightCorner(2, 2) << 0, -1, 1, 0;
+            }
 
-            int n_lanes = 2;
-            int lane = random_int(0, n_lanes - 1);
-            double lane_width = 4. * globals.ROBOT_RADIUS;
+            double lane_width = 4.0 * globals.ROBOT_RADIUS;
             double lane_v_offset = (0.5 * (1 - n_lanes) + lane) * lane_width;
-            starting = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., lane_v_offset, globals.MAX_SPEED, 0.}};
-            ending = rot * Eigen::VectorXd{{(double)globals.WORLD_SZ, lane_v_offset, 0., 0.}};
-            std::deque<Eigen::VectorXd> waypoints{starting, ending};
-            // END COMMENT
+            double additional_distance = 0.5; // Define the additional distance behind the master
+
+            // Define starting and ending points for master and slave robots based on grid cell
+            Eigen::VectorXd starting_master(4);
+            Eigen::VectorXd ending_master(4);
+            Eigen::VectorXd starting_slave(4);
+            Eigen::VectorXd ending_slave(4);
+
+            starting_master << -globals.WORLD_SZ / 2.0 + col * cell_size + additional_distance, row * cell_size + lane_v_offset, globals.MAX_SPEED, 0.0;
+            ending_master << globals.WORLD_SZ / 2.0 + col * cell_size + additional_distance, row * cell_size + lane_v_offset, 0.0, 0.0;
+
+            starting_slave << -globals.WORLD_SZ / 2.0 + col * cell_size, row * cell_size + lane_v_offset, globals.MAX_SPEED, 0.0;
+            ending_slave << globals.WORLD_SZ / 2.0 + col * cell_size, row * cell_size + lane_v_offset, 0.0, 0.0;
+
+            // Create waypoints for master and slave robots
+            std::deque<Eigen::VectorXd> waypoints_master{starting_master, ending_master};
+            std::deque<Eigen::VectorXd> waypoints_slave{starting_slave, ending_slave};
 
             float robot_radius = globals.ROBOT_RADIUS;
-            Color robot_color = DARKGREEN;
-            int master_id = -1;
+
+            // Create master robot
             bool isMaster = true;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, -1));
+            Color robot_color_master = DARKBROWN;
+            int master_id = next_rid_;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+
+            // Create slave robot
+            isMaster = false;
+            Color robot_color_slave = DARKBLUE;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
         }
+
         // Delete robots if out of bounds
         for (auto [rid, robot] : robots_)
         {
             if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
             {
                 robots_to_delete.push_back(robot);
+            }
+        }
+    }
+    else if (globals.FORMATION == "follow-leader")
+    {
+        new_robots_needed_ = true;
+        // robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS + 1) // Update condition to create 21 robots (1 leader + 20 followers)
+        {
+            // Create a leader robot
+            std::cout << "Creating leader robot" << std::endl;
+            starting = Eigen::VectorXd{{-globals.WORLD_SZ / 2., -globals.WORLD_SZ / 2., globals.MAX_SPEED, 0.}};
+
+            // generate a set of random waypoints for the leader robot and insert it into the robots_ map
+            std::deque<Eigen::VectorXd> waypoints{starting};
+            for (int i = 0; i < 10; i++)
+            {
+                Eigen::VectorXd next_waypoint = Eigen::VectorXd{{random_double(-globals.WORLD_SZ / 2., globals.WORLD_SZ / 2.), random_double(-globals.WORLD_SZ / 2., globals.WORLD_SZ / 2.), 0., 0.}};
+                waypoints.push_back(next_waypoint);
+            }
+
+            ending = Eigen::VectorXd{{(double)globals.WORLD_SZ, -globals.WORLD_SZ / 2., 0., 0.}};
+            waypoints.push_back(ending);
+            float robot_radius = globals.ROBOT_RADIUS;
+            Color robot_color = DARKGREEN;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1));
+
+            leader_init_ = true;
+
+            // Create follower robots
+            float min_circumference_spacing = 5. * globals.ROBOT_RADIUS;
+            double min_radius = 0.25 * globals.WORLD_SZ;
+            Eigen::VectorXd centre{{0., 0., 0., 0.}};
+            for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create 20 follower robots
+            {
+                // Select radius of large circle to be at least min_radius,
+                // Also ensures that robots in the circle are at least min_circumference_spacing away from each other
+                float radius_circle = (globals.NUM_ROBOTS == 1) ? min_radius : std::max(min_radius, sqrt(min_circumference_spacing / (2. - 2. * cos(2. * PI / globals.NUM_ROBOTS))));
+                Eigen::VectorXd offset_from_centre = Eigen::VectorXd{{radius_circle * cos(2. * PI * i / globals.NUM_ROBOTS)},
+                                                                     {radius_circle * sin(2. * PI * i / globals.NUM_ROBOTS)},
+                                                                     {0.},
+                                                                     {0.}};
+                starting = centre + offset_from_centre;
+                std::deque<Eigen::VectorXd> waypoints{starting, starting};
+
+                // Define robot radius and colour here.
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color robot_color = ColorFromHSV(i * 360. / globals.NUM_ROBOTS, 1., 0.75);
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1));
+            }
+        }
+
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow the node in front of them
+            for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Update loop condition to follow 20 robots
+            {
+                auto target = robots_.at(i - 1);
+                auto follower = robots_.at(i);
+                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0., 0., 0., 0.}};
+                follower->waypoints_[0] = target->position_ - offset_from_target;
             }
         }
     }

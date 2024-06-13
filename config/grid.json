@@ -20,8 +20,8 @@
   "COMMUNICATION_RADIUS": 20,
   "MAX_SPEED": 2,
   "COMMS_FAILURE_RATE": 0,
-  "FORMATION": "junction_twoway",
-  "OBSTACLE_FILE": "../assets/imgs/junction_twoway.png",
+  "FORMATION": "grid",
+  "OBSTACLE_FILE": "../assets/imgs/grid.png",
 
   "###": "GBP parameters",
   "SIGMA_FACTOR_DYNAMICS": 0.1,
