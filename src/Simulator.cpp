@@ -415,60 +415,93 @@ void Simulator::createOrDeleteRobots()
     }
     else if (globals.FORMATION == "grid")
     {
-        // Robots in a grid style city. There is only one-way traffic, and no turning.
+        // Robots in a cross-roads style junction with master-slave functionality.
         new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
-        if (clock_ % 40 == 0)
+        if (clock_ % 20 == 0)
         { // Arbitrary condition on the simulation time to create new robots
-            // Assuming the grid is defined as a 2D array or list
-            std::vector<std::vector<int>> grid = {
-                {1, 1, 0, 0},
-                {1, 0, 1, 1},
-                {0, 1, 1, 0},
-                {1, 1, 0, 1}};
+            leader_init_ = true;
+            int n_roads = 6; // Adjusted for 6 possible road positions
+            int road = random_int(0, n_roads - 1);
 
-            int n_roads = grid.size() * grid[0].size(); // Total possible roads
-            int road_index = random_int(0, n_roads - 1);
-            int row = road_index / grid[0].size();
-            int col = road_index % grid[0].size();
-
-            // Define cell size; this should be based on your grid configuration
-            double cell_size = 10.0;               // Adjust cell size according to your grid dimensions
-            int n_lanes = 2;                       // Define number of lanes
-            int lane = random_int(0, n_lanes - 1); // Randomly choose a lane
-
-            // Determine road orientation and position
             Eigen::Matrix4d rot;
             rot.setZero();
-            if (grid[row][col] == 1)
-            { // Horizontal road
+
+            // Define the rotation based on the selected road orientation
+            switch (road)
+            {
+            case 0: // Horizontal road (top row)
                 rot.topLeftCorner(2, 2) << 1, 0, 0, 1;
                 rot.bottomRightCorner(2, 2) << 1, 0, 0, 1;
-            }
-            else
-            { // Vertical road
+                break;
+            case 1: // Horizontal road (middle row)
+                rot.topLeftCorner(2, 2) << 1, 0, 0, 1;
+                rot.bottomRightCorner(2, 2) << 1, 0, 0, 1;
+                break;
+            case 2: // Horizontal road (bottom row)
+                rot.topLeftCorner(2, 2) << 1, 0, 0, 1;
+                rot.bottomRightCorner(2, 2) << 1, 0, 0, 1;
+                break;
+            case 3: // Vertical road (left column)
                 rot.topLeftCorner(2, 2) << 0, -1, 1, 0;
                 rot.bottomRightCorner(2, 2) << 0, -1, 1, 0;
+                break;
+            case 4: // Vertical road (middle column)
+                rot.topLeftCorner(2, 2) << 0, -1, 1, 0;
+                rot.bottomRightCorner(2, 2) << 0, -1, 1, 0;
+                break;
+            case 5: // Vertical road (right column)
+                rot.topLeftCorner(2, 2) << 0, -1, 1, 0;
+                rot.bottomRightCorner(2, 2) << 0, -1, 1, 0;
+                break;
+            default:
+                break;
             }
 
-            double lane_width = 4.0 * globals.ROBOT_RADIUS;
+            int n_lanes = 2;
+            int lane = random_int(0, n_lanes - 1);
+            double lane_width = 4. * globals.ROBOT_RADIUS;
             double lane_v_offset = (0.5 * (1 - n_lanes) + lane) * lane_width;
-            double additional_distance = 0.5; // Define the additional distance behind the master
+            double additional_distance = 0.; // Define the additional distance behind the master
 
-            // Define starting and ending points for master and slave robots based on grid cell
-            Eigen::VectorXd starting_master(4);
-            Eigen::VectorXd ending_master(4);
-            Eigen::VectorXd starting_slave(4);
-            Eigen::VectorXd ending_slave(4);
+            Eigen::VectorXd starting_master;
+            Eigen::VectorXd ending_master;
 
-            starting_master << -globals.WORLD_SZ / 2.0 + col * cell_size + additional_distance, row * cell_size + lane_v_offset, globals.MAX_SPEED, 0.0;
-            ending_master << globals.WORLD_SZ / 2.0 + col * cell_size + additional_distance, row * cell_size + lane_v_offset, 0.0, 0.0;
+            // Adjust the distance between pairs of roads by reducing the vertical/horizontal offsets
+            double closer_offset = globals.WORLD_SZ / 3.5;           // This brings roads closer together in the grid
+            double closer_offset_vertical = globals.WORLD_SZ / 3.25; // This brings roads closer together in the grid
 
-            starting_slave << -globals.WORLD_SZ / 2.0 + col * cell_size, row * cell_size + lane_v_offset, globals.MAX_SPEED, 0.0;
-            ending_slave << globals.WORLD_SZ / 2.0 + col * cell_size, row * cell_size + lane_v_offset, 0.0, 0.0;
+            switch (road)
+            {
+            case 0:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, closer_offset + lane_v_offset, 0., 0.}};
+                break;
+            case 1:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, 0., 0.}};
+                break;
+            case 2:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, -closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, -closer_offset + lane_v_offset, 0., 0.}};
+                break;
+            case 3:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, closer_offset_vertical + lane_v_offset, 0., 0.}};
+                break;
+            case 4:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, 0., 0.}};
+                break;
+            case 5:
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, -closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, -closer_offset_vertical + lane_v_offset, 0., 0.}};
+                break;
+            default:
+                break;
+            }
 
             // Create waypoints for master and slave robots
             std::deque<Eigen::VectorXd> waypoints_master{starting_master, ending_master};
-            std::deque<Eigen::VectorXd> waypoints_slave{starting_slave, ending_slave};
 
             float robot_radius = globals.ROBOT_RADIUS;
 
@@ -477,11 +510,6 @@ void Simulator::createOrDeleteRobots()
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
-
-            // Create slave robot
-            isMaster = false;
-            Color robot_color_slave = DARKBLUE;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
         }
 
         // Delete robots if out of bounds
@@ -490,6 +518,7 @@ void Simulator::createOrDeleteRobots()
             if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
             {
                 robots_to_delete.push_back(robot);
+                leader_init_ = false;
             }
         }
     }
