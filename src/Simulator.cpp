@@ -461,10 +461,11 @@ void Simulator::createOrDeleteRobots()
             int lane = random_int(0, n_lanes - 1);
             double lane_width = 4. * globals.ROBOT_RADIUS;
             double lane_v_offset = (0.5 * (1 - n_lanes) + lane) * lane_width;
-            double additional_distance = 0.; // Define the additional distance behind the master
+            double additional_distance = -2; // Define the additional distance behind the master
 
             Eigen::VectorXd starting_master;
             Eigen::VectorXd ending_master;
+            Eigen::VectorXd starting_slave;
 
             // Adjust the distance between pairs of roads by reducing the vertical/horizontal offsets
             double closer_offset = globals.WORLD_SZ / 3.5;           // This brings roads closer together in the grid
@@ -473,28 +474,34 @@ void Simulator::createOrDeleteRobots()
             switch (road)
             {
             case 0:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, closer_offset + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., closer_offset + lane_v_offset, 0., 0.}};
                 break;
             case 1:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., 0. + lane_v_offset, 0., 0.}};
                 break;
             case 2:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, -closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, -closer_offset + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., -closer_offset + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., -closer_offset + lane_v_offset, 0., 0.}};
                 break;
             case 3:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, closer_offset_vertical + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., closer_offset_vertical + lane_v_offset, 0., 0.}};
                 break;
             case 4:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., 0. + lane_v_offset, 0., 0.}};
                 break;
             case 5:
-                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, -closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
-                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2. + additional_distance, -closer_offset_vertical + lane_v_offset, 0., 0.}};
+                starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., -closer_offset_vertical + lane_v_offset, globals.MAX_SPEED, 0.}};
+                starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, 0. + lane_v_offset, globals.MAX_SPEED, 0.}};
+                ending_master = rot * Eigen::VectorXd{{globals.WORLD_SZ / 2., -closer_offset_vertical + lane_v_offset, 0., 0.}};
                 break;
             default:
                 break;
@@ -510,6 +517,12 @@ void Simulator::createOrDeleteRobots()
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+
+            // Create slave robot
+            isMaster = false;
+            Color robot_color_slave = DARKBLUE;
+            master_id = next_rid_ - 1;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_slave, isMaster, master_id));
         }
 
         // Delete robots if out of bounds
@@ -580,6 +593,65 @@ void Simulator::createOrDeleteRobots()
                 auto follower = robots_.at(i);
                 Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0., 0., 0., 0.}};
                 follower->waypoints_[0] = target->position_ - offset_from_target;
+            }
+        }
+    }
+    else if (globals.FORMATION == "highway")
+    {
+        // Robots in a two-way junction, turning LEFT (RED), RIGHT (BLUE) or STRAIGHT (GREEN) with master-slave functionality.
+        new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
+        if (clock_ % 20 == 0)
+        { // Arbitrary condition on the simulation time to create new robots
+            int n_roads = 4;
+            int road = random_int(0, n_roads - 1);
+            // We will define one road (the one going left) and then we can rotate the positions for other roads.
+            Eigen::Matrix4d rot;
+            rot.setZero();
+            rot.topLeftCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
+            rot.bottomRightCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
+
+            int n_lanes = 2;
+            int lane = random_int(0, n_lanes - 1);
+            int turn = random_int(0, 2);
+            double lane_width = 4. * globals.ROBOT_RADIUS;
+            double lane_v_offset = (0.5 * (1 - 2. * n_lanes) + lane) * lane_width;
+            double lane_h_offset = (1 - turn) * (0.5 + lane - n_lanes) * lane_width;
+            double additional_distance = 0.5; // Define the additional distance behind the master
+
+            // Define starting, turning, and ending points for master robots
+            Eigen::VectorXd starting_master = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2. + additional_distance, lane_v_offset, globals.MAX_SPEED, 0.}};
+            Eigen::VectorXd turning_master = rot * Eigen::VectorXd{{lane_h_offset, lane_v_offset, (turn % 2) * globals.MAX_SPEED, (turn - 1) * globals.MAX_SPEED}};
+            Eigen::VectorXd ending_master = rot * Eigen::VectorXd{{lane_h_offset + (turn % 2) * globals.WORLD_SZ * 1. + additional_distance, lane_v_offset + (turn - 1) * globals.WORLD_SZ * 1., 0., 0.}};
+
+            // Define starting, turning, and ending points for slave robots
+            Eigen::VectorXd starting_slave = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., lane_v_offset, globals.MAX_SPEED, 0.}};
+            Eigen::VectorXd turning_slave = turning_master; // Slave robots will have the same turning point
+            Eigen::VectorXd ending_slave = rot * Eigen::VectorXd{{lane_h_offset + (turn % 2) * globals.WORLD_SZ * 1., lane_v_offset + (turn - 1) * globals.WORLD_SZ * 1., 0., 0.}};
+
+            // Create waypoints for master and slave robots
+            std::deque<Eigen::VectorXd> waypoints_master{starting_master, turning_master, ending_master};
+            std::deque<Eigen::VectorXd> waypoints_slave{starting_slave, turning_slave, ending_slave};
+
+            float robot_radius = globals.ROBOT_RADIUS;
+
+            // Create master robot
+            bool isMaster = true;
+            Color robot_color_master = DARKBROWN;
+            int master_id = next_rid_;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+
+            // Create slave robot
+            isMaster = false;
+            Color robot_color_slave = DARKBLUE;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
+        }
+
+        // Delete robots if out of bounds
+        for (auto [rid, robot] : robots_)
+        {
+            if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
+            {
+                robots_to_delete.push_back(robot);
             }
         }
     }
