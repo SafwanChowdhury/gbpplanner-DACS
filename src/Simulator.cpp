@@ -838,7 +838,10 @@ void Simulator::createOrDeleteRobots()
 
                 int lane = random_int(0, n_lanes - 1);
                 double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
-
+                if (group == 3)
+                {
+                    lane_v_offset = road_v_offset + (0.5 * (1 - 1.0 * n_lanes) + lane) * lane_width;
+                }
                 double road_length = globals.WORLD_SZ;      // Length of each road
                 double ramp_length = road_length / 2.7;     // Length of on/off ramps
                 double ramp_angle = M_PI / 2.9;             // Angle of the ramps to the road
@@ -892,6 +895,8 @@ void Simulator::createOrDeleteRobots()
                     else if (group == 3) // Right to left on road 1
                     {
                         waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
                         waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
                     }
                 }
@@ -960,6 +965,10 @@ void Simulator::createOrDeleteRobots()
             // Update the follower robots to follow the node in front of them
             for (int group = 0; group < 4; ++group)
             {
+                if (random_double(0.0, 1.0) < 0.87) // 87% communication failure rate
+                {
+                    continue;
+                }
                 int start_index = group * (globals.NUM_ROBOTS + 1);
                 for (int i = start_index + 1; i <= start_index + globals.NUM_ROBOTS; i++)
                 {
