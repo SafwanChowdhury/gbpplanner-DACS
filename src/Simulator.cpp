@@ -822,17 +822,19 @@ void Simulator::createOrDeleteRobots()
     {
         new_robots_needed_ = true;
         // Robot count and time
-        if (clock_ % 20 == 0 && next_rid_ < 2 * globals.NUM_ROBOTS + 2) // Create 2 leaders + globals.NUM_ROBOTS followers per group
+        if (clock_ % 20 == 0 && next_rid_ < 4 * globals.NUM_ROBOTS + 4) // Create 2 leaders + globals.NUM_ROBOTS followers per group for 4 groups
         {
             int n_roads = 2; // Number of roads in the highway configuration
             int n_lanes = 2;
             double lane_width = 4.0 * globals.ROBOT_RADIUS;
             double road_spacing = globals.WORLD_SZ / 3.5;
-            for (int group = 0; group < 2; ++group)
+
+            for (int group = 0; group < 4; ++group)
             {
-                int road = group; // Road is set to 0 for group 1 and 1 for group 2
+                int road = group % 2; // Road is set to 0 for group 0 and 2, 1 for group 1 and 3
                 double road_v_offset = (road - 0.375) * road_spacing;
-                bool flip_ramps = (road % 2 != 0); // Flip ramps on one road
+                bool flip_ramps = (group == 1 || group == 3);        // Flip ramps for groups 1 and 3
+                bool travel_on_highway = (group == 2 || group == 3); // Groups 2 and 3 travel on the main highway
 
                 int lane = random_int(0, n_lanes - 1);
                 double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
@@ -880,23 +882,39 @@ void Simulator::createOrDeleteRobots()
                 // Define waypoints for the leader robot
                 std::deque<Eigen::VectorXd> waypoints_leader;
 
-                if (!flip_ramps)
+                if (travel_on_highway)
                 {
-                    waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}});
+                    if (group == 2) // Left to right on road 0
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
+                    else if (group == 3) // Right to left on road 1
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
                 }
                 else
                 {
-                    waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                    waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, 0.0, 0.0}});
+                    if (!flip_ramps)
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}});
+                    }
+                    else
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, 0.0, 0.0}});
+                    }
                 }
 
                 float robot_radius = globals.ROBOT_RADIUS;
-                Color leader_color = (group == 0) ? DARKGREEN : RED;
+                Color leader_color = (group < 2) ? (group == 0 ? DARKGREEN : RED) : (group == 2 ? BLUE : YELLOW);
 
                 // Create the leader robot for each group
                 robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
@@ -905,14 +923,27 @@ void Simulator::createOrDeleteRobots()
                 for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
                 {
                     Eigen::VectorXd starting_position;
-                    // Use the leader's starting position for all follower robots
-                    if (!flip_ramps)
+                    if (travel_on_highway)
                     {
-                        starting_position = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                        if (group == 2)
+                        {
+                            starting_position = Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
+                        }
+                        else
+                        {
+                            starting_position = Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
+                        }
                     }
                     else
                     {
-                        starting_position = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}};
+                        if (!flip_ramps)
+                        {
+                            starting_position = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                        }
+                        else
+                        {
+                            starting_position = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}};
+                        }
                     }
                     std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
 
@@ -927,32 +958,19 @@ void Simulator::createOrDeleteRobots()
         if (!robots_.empty())
         {
             // Update the follower robots to follow the node in front of them
-            for (int i = 1; i <= globals.NUM_ROBOTS; i++)
+            for (int group = 0; group < 4; ++group)
             {
-                auto target = robots_.at(i - 1);
-                auto follower = robots_.at(i);
-                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
-                follower->waypoints_[0] = target->position_ - offset_from_target;
-            }
-            for (int i = globals.NUM_ROBOTS + 2; i <= 2 * globals.NUM_ROBOTS + 1; i++)
-            {
-                auto target = robots_.at(i - 1);
-                auto follower = robots_.at(i);
-                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
-                follower->waypoints_[0] = target->position_ - offset_from_target;
+                int start_index = group * (globals.NUM_ROBOTS + 1);
+                for (int i = start_index + 1; i <= start_index + globals.NUM_ROBOTS; i++)
+                {
+                    auto target = robots_.at(i - 1);
+                    auto follower = robots_.at(i);
+                    Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                    follower->waypoints_[0] = target->position_ - offset_from_target;
+                }
             }
         }
-
-        // // Delete robots if out of bounds
-        // for (auto [rid, robot] : robots_)
-        // {
-        //     if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
-        //     {
-        //         robots_to_delete.push_back(robot);
-        //     }
-        // }
     }
-
     else
     {
         print("Shouldn't reach here, formation not defined!");
