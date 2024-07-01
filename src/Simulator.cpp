@@ -986,136 +986,139 @@ void Simulator::createOrDeleteRobots()
         // Robot count and time
         if (clock_ % 20 == 0 && next_rid_ < 4 * globals.NUM_ROBOTS + 4) // Create 2 leaders + globals.NUM_ROBOTS followers per group for 4 groups
         {
-            int n_roads = 2;                                // Number of roads
-            int n_lanes = 2;                                // Number of lanes per road
-            double lane_width = 8.0 * globals.ROBOT_RADIUS; // Width of each lane
-            double road_length = globals.WORLD_SZ;          // Length of each road
-            double road_spacing = globals.WORLD_SZ / 4.6;   // Distance between roads
-            double ramp_length = road_length / 5.3;         // Length of on/off ramps
-            double ramp_angle = M_PI / 3.1;                 // Angle of the ramps to the road
-            double ramp_length_off = road_length / 7.8;     // Length of off ramps
-            double ramp_angle_off = M_PI / 4.5;             // Angle of the off ramps to the road
+            int n_roads = 2; // Number of roads in the highway configuration
+            int n_lanes = 2;
+            double lane_width = 8.0 * globals.ROBOT_RADIUS;
+            double road_spacing = globals.WORLD_SZ / 4.6;
 
-            double on_ramp_start_pos = -road_length / 2.5;
-            double on_ramp_end_pos = -road_length / 3.7;
-            double off_ramp_start_pos = road_length / 3.7;
-            double off_ramp_end_pos = road_length / 2.5;
-
-            for (int road = 0; road < n_roads; ++road)
+            for (int group = 0; group < 4; ++group)
             {
+                int road = group % 2; // Road is set to 0 for group 0 and 2, 1 for group 1 and 3
                 double road_v_offset = (road - 0.325) * road_spacing;
-                bool flip_ramps = (road % 2 != 0); // Flip ramps on one road
+                bool flip_ramps = (group == 1 || group == 3);        // Flip ramps for groups 1 and 3
+                bool travel_on_highway = (group == 2 || group == 3); // Groups 2 and 3 travel on the main highway
 
-                for (int group = 0; group < 2; ++group) // Two groups per road
+                int lane = random_int(0, n_lanes - 1);
+                double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
+                if (group == 3)
                 {
-                    bool travel_on_highway = (group == 1);
-                    int lane = random_int(0, n_lanes - 1);
-                    double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
+                    lane_v_offset = road_v_offset + (0.5 * (1 - 1.0 * n_lanes) + lane) * lane_width;
+                }
+                double road_length = globals.WORLD_SZ;      // Length of each road
+                double ramp_length = road_length / 5.3;     // Length of on/off ramps
+                double ramp_angle = M_PI / 3.1;             // Angle of the ramps to the road
+                double ramp_length_off = road_length / 7.8; // Length of on/off ramps
+                double ramp_angle_off = M_PI / 4.5;         // Angle of the ramps to the road
 
-                    // Define ramp positions based on the flip condition
-                    double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
-                    double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
+                // Ramp positions as variables
+                double on_ramp_start_pos = -road_length / 2.5;
+                double on_ramp_end_pos = -road_length / 3.7;
+                double off_ramp_start_pos = road_length / 3.7;
+                double off_ramp_end_pos = road_length / 2.5;
 
-                    if (flip_ramps)
+                // Define ramp positions based on the flip condition
+                double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
+                double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
+
+                if (flip_ramps)
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
+                }
+                else
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
+                }
+
+                // Define waypoints for the leader robot
+                std::deque<Eigen::VectorXd> waypoints_leader;
+
+                if (travel_on_highway)
+                {
+                    if (group == 2) // Left to right on road 0
                     {
-                        on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
-                        on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
-                        on_ramp_merge_x = on_ramp_end_pos;
-                        on_ramp_merge_y = lane_v_offset;
-
-                        off_ramp_start_x = off_ramp_start_pos;
-                        off_ramp_start_y = lane_v_offset;
-                        off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
-                        off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
+                    else if (group == 3) // Right to left on road 1
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
+                }
+                else
+                {
+                    if (!flip_ramps)
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}});
                     }
                     else
                     {
-                        on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
-                        on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
-                        on_ramp_merge_x = on_ramp_end_pos;
-                        on_ramp_merge_y = lane_v_offset;
-
-                        off_ramp_start_x = off_ramp_start_pos;
-                        off_ramp_start_y = lane_v_offset;
-                        off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
-                        off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, 0.0, 0.0}});
                     }
+                }
 
-                    // Define waypoints for the leader robot
-                    std::deque<Eigen::VectorXd> waypoints_leader;
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color leader_color = (group < 2) ? (group == 0 ? DARKGREEN : RED) : (group == 2 ? BLUE : YELLOW);
 
+                // Create the leader robot for each group
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
+
+                // Create follower robots
+                for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
+                {
+                    Eigen::VectorXd starting_position;
                     if (travel_on_highway)
                     {
-                        if (group == 0) // Left to right on road 0
+                        if (group == 2)
                         {
-                            waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                            starting_position = Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
                         }
-                        else if (group == 1) // Right to left on road 1
+                        else
                         {
-                            waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                            starting_position = Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
                         }
                     }
                     else
                     {
                         if (!flip_ramps)
                         {
-                            waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}});
+                            starting_position = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
                         }
                         else
                         {
-                            waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
-                            waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, 0.0, 0.0}});
+                            starting_position = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}};
                         }
                     }
+                    std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
 
-                    float robot_radius = globals.ROBOT_RADIUS;
-                    Color leader_color = (road == 0 ? (group == 0 ? DARKGREEN : RED) : (group == 0 ? BLUE : YELLOW));
-
-                    // Create the leader robot for each group
-                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
-
-                    // Create follower robots
-                    for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
-                    {
-                        Eigen::VectorXd starting_position;
-                        if (travel_on_highway)
-                        {
-                            if (group == 0)
-                            {
-                                starting_position = Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
-                            }
-                            else
-                            {
-                                starting_position = Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
-                            }
-                        }
-                        else
-                        {
-                            if (!flip_ramps)
-                            {
-                                starting_position = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
-                            }
-                            else
-                            {
-                                starting_position = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}};
-                            }
-                        }
-                        std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
-
-                        // Define robot radius and colour
-                        float follower_radius = globals.ROBOT_RADIUS;
-                        Color follower_color = ColorFromHSV(i * 360.0 / globals.NUM_ROBOTS, 1.0, 0.75);
-                        robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, follower_radius, follower_color, true, -1));
-                    }
+                    // Define robot radius and colour
+                    float follower_radius = globals.ROBOT_RADIUS;
+                    Color follower_color = ColorFromHSV(i * 360.0 / globals.NUM_ROBOTS, 1.0, 0.75);
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, follower_radius, follower_color, true, -1));
                 }
             }
         }
@@ -1139,7 +1142,6 @@ void Simulator::createOrDeleteRobots()
     else
     {
         print("Shouldn't reach here, formation not defined!");
-        // Define new formations here!
     }
     // Create and/or delete the robots as necessary.
     for (auto robot : robots_to_create)
