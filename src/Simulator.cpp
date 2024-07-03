@@ -390,10 +390,6 @@ std::unordered_map<int, std::vector<std::pair<HighwayWaypoints, HighwayWaypoints
         for (int lane = 0; lane < n_lanes; ++lane)
         {
             double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
-            if (group == 3)
-            {
-                lane_v_offset = road_v_offset + (0.5 * (1 - 1.0 * n_lanes) + lane) * lane_width;
-            }
 
             double on_ramp_start_pos = -road_length / 2.5;
             double on_ramp_end_pos = -road_length / 3.7;
@@ -1187,56 +1183,6 @@ void Simulator::createOrDeleteRobots()
             }
         }
 
-        // Generate solo agents every few frames
-        if (clock_ % 100 == 0) // Adjust the frequency as needed
-        {
-            int num_solo_agents = 1; // Number of solo agents to create
-            for (int i = 0; i < num_solo_agents; ++i)
-            {
-                int group = random_int(0, 4 - 1);
-                bool travel_on_highway = (group == 2 || group == 3);
-                int lane = random_int(0, 2 - 1);
-                bool flip_ramps = (group == 1 || group == 3);
-
-                auto waypoints2 = highwayWaypoints[group][lane];
-                auto &selected_waypoints = flip_ramps ? waypoints2.second : waypoints2.first;
-
-                Eigen::VectorXd starting_position;
-                if (travel_on_highway)
-                {
-                    if (group == 2)
-                    {
-                        starting_position = selected_waypoints.lane_start;
-                        ending = selected_waypoints.lane_end;
-                    }
-                    else
-                    {
-                        starting_position = selected_waypoints.lane_end;
-                        ending = selected_waypoints.lane_start;
-                    }
-                }
-                else
-                {
-                    if (!flip_ramps)
-                    {
-                        starting_position = selected_waypoints.lane_start;
-                        ending = selected_waypoints.lane_end;
-                    }
-                    else
-                    {
-                        starting_position = selected_waypoints.lane_end;
-                        ending = selected_waypoints.lane_start;
-                    }
-                }
-                std::deque<Eigen::VectorXd> waypoints3{starting_position, ending};
-
-                // Define solo agent radius and color
-                float solo_robot_radius = globals.ROBOT_RADIUS;
-                Color solo_color = BLACK;
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
-            }
-        }
-
         if (!robots_.empty())
         {
             // Update the follower robots to follow the node in front of them
@@ -1258,65 +1204,14 @@ void Simulator::createOrDeleteRobots()
         auto highwayWaypoints = calculateHighwayWaypoints();
 
         new_robots_needed_ = true;
-
-        // Generate solo agents if total robot count is less than 5 or at a regular interval after group robots have been spawned
-        if (robots_.size() < 5 || (clock_ % 100 == 0 && next_rid_ > 4 * globals.NUM_ROBOTS + 4 + 5)) // Adjust the frequency as needed
-        {
-            int num_solo_agents = (robots_.size() < 5) ? (5 - robots_.size()) : 5; // Ensure there are at least 5 solo agents initially, then generate 5 at regular intervals
-            for (int i = 0; i < num_solo_agents; ++i)
-            {
-                int group = random_int(0, 4 - 1);
-                bool travel_on_highway = (group == 2 || group == 3);
-                int lane = random_int(0, 2 - 1);
-                bool flip_ramps = (group == 1 || group == 3);
-
-                auto waypoints2 = highwayWaypoints[group][lane];
-                auto &selected_waypoints = flip_ramps ? waypoints2.second : waypoints2.first;
-
-                Eigen::VectorXd starting_position;
-                if (travel_on_highway)
-                {
-                    if (group == 2)
-                    {
-                        starting_position = selected_waypoints.lane_start;
-                        ending = selected_waypoints.lane_end;
-                    }
-                    else
-                    {
-                        starting_position = selected_waypoints.lane_end;
-                        ending = selected_waypoints.lane_start;
-                    }
-                }
-                else
-                {
-                    if (!flip_ramps)
-                    {
-                        starting_position = selected_waypoints.lane_start;
-                        ending = selected_waypoints.lane_end;
-                    }
-                    else
-                    {
-                        starting_position = selected_waypoints.lane_end;
-                        ending = selected_waypoints.lane_start;
-                    }
-                }
-                std::deque<Eigen::VectorXd> waypoints3{starting_position, ending};
-
-                // Define solo agent radius and color
-                float solo_robot_radius = globals.ROBOT_RADIUS;
-                Color solo_color = BLACK;
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
-            }
-        }
-
-        // Generate group robots only if there are at least 5 robots on the map
-        if (robots_.size() >= 5 && clock_ % 20 == 0 && next_rid_ < 4 * globals.NUM_ROBOTS + 4)
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < 4 * globals.NUM_ROBOTS + 4) // Create 2 leaders + globals.NUM_ROBOTS followers per group for 4 groups
         {
             for (int group = 0; group < 4; ++group)
             {
                 bool travel_on_highway = (group == 2 || group == 3);
                 int lane = random_int(0, 2 - 1);
-                bool flip_ramps = (group == 1 || group == 3);
+                bool flip_ramps = (group == 1);
 
                 auto waypoints = highwayWaypoints[group][lane];
                 auto &selected_waypoints = flip_ramps ? waypoints.second : waypoints.first;
@@ -1335,6 +1230,7 @@ void Simulator::createOrDeleteRobots()
                     }
                     else if (group == 3) // Right to left on road 1
                     {
+                        selected_waypoints = highwayWaypoints[3][1].second;
                         waypoints_leader.push_back(selected_waypoints.lane_end);
                         waypoints_leader.push_back(selected_waypoints.off_ramp_start);
                         waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
@@ -1371,19 +1267,19 @@ void Simulator::createOrDeleteRobots()
                     follower_color = GREEN;
                     break;
                 case 1:
-                    leader_color = RED;
-                    follower_color = RED;
+                    leader_color = MAGENTA;
+                    print("next_rid_: ", next_rid_);
+                    follower_color = MAGENTA;
                     break;
                 case 2:
                     leader_color = BLUE;
                     follower_color = BLUE;
                     break;
                 case 3:
-                    leader_color = YELLOW;
-                    follower_color = YELLOW;
+                    leader_color = RED;
+                    follower_color = RED;
                     break;
                 }
-
                 // Create the leader robot for each group
                 robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
 
@@ -1414,9 +1310,53 @@ void Simulator::createOrDeleteRobots()
                         }
                     }
                     std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
-
+                    if (next_rid_ == 5)
+                        follower_color = YELLOW;
                     // Create the follower robot with distinct color
                     robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1));
+                }
+            }
+        }
+
+        // Generate solo agents every few frames
+        if (clock_ % 20 == 0) // Adjust the frequency as needed
+        {
+            int num_solo_agents = 1; // Number of solo agents to create
+            for (int i = 0; i < num_solo_agents; ++i)
+            {
+                int direction = random_int(0, 1); // 0 for left to right, 1 for right to left
+                int lane = random_int(0, 1);      // Randomly pick between lanes
+
+                auto waypoints2 = (direction == 0) ? highwayWaypoints[direction][lane] : highwayWaypoints[direction + 2][lane];
+                auto &selected_waypoints = waypoints2.first;
+
+                Eigen::VectorXd starting_position;
+                Eigen::VectorXd ending_position;
+
+                if (direction == 0) // Left to right
+                {
+                    starting_position = selected_waypoints.lane_start;
+                    ending_position = selected_waypoints.lane_end;
+                }
+                else // Right to left
+                {
+                    starting_position = selected_waypoints.lane_end;
+                    ending_position = selected_waypoints.lane_start;
+                }
+
+                std::deque<Eigen::VectorXd> waypoints3{starting_position, ending_position};
+
+                // Define solo agent radius and color
+                float solo_robot_radius = globals.ROBOT_RADIUS;
+                Color solo_color = BLACK;
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
+            }
+            // Delete robots if out of bounds
+            for (auto [rid, robot] : robots_)
+            {
+                if ((abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2) && robot->color_.r == 0 && robot->color_.g == 0 && robot->color_.b == 0)
+                {
+                    robots_to_delete.push_back(robot);
                 }
             }
         }
@@ -1434,6 +1374,36 @@ void Simulator::createOrDeleteRobots()
                     Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
                     follower->waypoints_[0] = target->position_ - offset_from_target;
                 }
+            }
+
+            // Check if robot 3 has passed its second waypoint by checking its queue size
+            auto leader = robots_.at(3); // Robot 3
+            if (leader->waypoints_.size() < 2)
+            {
+                // Set robot 5 to follow robot 11
+                auto follower = robots_.at(5);
+                auto new_leader = robots_.at(11); // Robot 11
+                follower->waypoints_.clear();     // Clear existing waypoints
+                follower->waypoints_.push_back(new_leader->position_);
+                follower->waypoints_.push_back(new_leader->position_); // Ensure there are at least two waypoints
+
+                // Update robot 5's following behavior to continue following robot 11
+                for (int i = 6; i <= globals.NUM_ROBOTS; i++)
+                {
+                    auto target = robots_.at(i - 1);
+                    auto follower = robots_.at(i);
+                    Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                    follower->waypoints_[0] = target->position_ - offset_from_target;
+                }
+            }
+
+            // Ensure robot 5 continues to follow robot 11 if the switch has already been made
+            auto follower = robots_.at(5);
+            if (follower->waypoints_.size() == 2 && follower->waypoints_[0] == robots_.at(11)->position_)
+            {
+                auto new_leader = robots_.at(11); // Robot 11
+                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                follower->waypoints_[0] = new_leader->position_ - offset_from_target;
             }
         }
     }
