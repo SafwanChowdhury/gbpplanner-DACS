@@ -17,6 +17,9 @@
 #include <nanoflann.h>
 #include <KDTreeMapOfVectorsAdaptor.h>
 #include <random>
+#include <unordered_map>
+#include <vector>
+#include <Eigen/Dense>
 
 class Robot;
 class Graphics;

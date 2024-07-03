@@ -18,7 +18,7 @@
   "T_HORIZON": 5,
   "ROBOT_RADIUS": 1,
   "COMMUNICATION_RADIUS": 20,
-  "MAX_SPEED": 2,
+  "MAX_SPEED": 3,
   "COMMS_FAILURE_RATE": 0,
   "FORMATION": "highway-join-leave",
   "OBSTACLE_FILE": "../assets/imgs/highway_long.png",
