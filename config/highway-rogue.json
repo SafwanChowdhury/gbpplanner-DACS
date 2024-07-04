@@ -3,7 +3,7 @@
   "ASSETS_DIR": "../assets/",
   
   "#": "Display parameters",
-  "DISPLAY": 1,
+  "DISPLAY": 0,
   "WORLD_SZ": 200,
   "SCREEN_SZ": 1000,
   "DRAW_INTERROBOT": 0,
@@ -20,7 +20,7 @@
   "COMMUNICATION_RADIUS": 20,
   "MAX_SPEED": 3,
   "COMMS_FAILURE_RATE": 0,
-  "FORMATION": "highway-join-leave-rogue",
+  "FORMATION": "highway-rogue",
   "OBSTACLE_FILE": "../assets/imgs/highway_long.png",
 
   "###": "GBP parameters",

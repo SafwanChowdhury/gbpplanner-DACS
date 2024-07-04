@@ -1078,7 +1078,7 @@ void Simulator::createOrDeleteRobots()
             {
                 bool travel_on_highway = (group == 2 || group == 3);
                 int lane = random_int(0, 2 - 1);
-                bool flip_ramps = (group == 1 || group == 3);
+                bool flip_ramps = (group == 1);
 
                 auto waypoints = highwayWaypoints[group][lane];
                 auto &selected_waypoints = flip_ramps ? waypoints.second : waypoints.first;
@@ -1097,9 +1097,11 @@ void Simulator::createOrDeleteRobots()
                     }
                     else if (group == 3) // Right to left on road 1
                     {
+                        selected_waypoints = highwayWaypoints[3][1].second;
                         waypoints_leader.push_back(selected_waypoints.lane_end);
                         waypoints_leader.push_back(selected_waypoints.off_ramp_start);
                         waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        selected_waypoints = highwayWaypoints[3][0].second;
                         waypoints_leader.push_back(selected_waypoints.lane_start);
                     }
                 }
@@ -1133,19 +1135,19 @@ void Simulator::createOrDeleteRobots()
                     follower_color = GREEN;
                     break;
                 case 1:
-                    leader_color = RED;
-                    follower_color = RED;
+                    leader_color = MAGENTA;
+                    print("next_rid_: ", next_rid_);
+                    follower_color = MAGENTA;
                     break;
                 case 2:
                     leader_color = BLUE;
                     follower_color = BLUE;
                     break;
                 case 3:
-                    leader_color = YELLOW;
-                    follower_color = YELLOW;
+                    leader_color = RED;
+                    follower_color = RED;
                     break;
                 }
-
                 // Create the leader robot for each group
                 robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
 
@@ -1176,7 +1178,8 @@ void Simulator::createOrDeleteRobots()
                         }
                     }
                     std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
-
+                    if (next_rid_ == 5)
+                        follower_color = YELLOW;
                     // Create the follower robot with distinct color
                     robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1));
                 }
@@ -1197,9 +1200,38 @@ void Simulator::createOrDeleteRobots()
                     follower->waypoints_[0] = target->position_ - offset_from_target;
                 }
             }
+
+            // Check if robot 3 has passed its second waypoint by checking its queue size
+            auto leader = robots_.at(3); // Robot 3
+            if (leader->waypoints_.size() < 2)
+            {
+                // Set robot 5 to follow robot 11
+                auto follower = robots_.at(5);
+                auto new_leader = robots_.at(11); // Robot 11
+                follower->waypoints_.clear();     // Clear existing waypoints
+                follower->waypoints_.push_back(new_leader->position_);
+
+                // Update robot 5's following behavior to continue following robot 11
+                for (int i = 6; i <= globals.NUM_ROBOTS; i++)
+                {
+                    auto target = robots_.at(i - 1);
+                    auto follower = robots_.at(i);
+                    Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                    follower->waypoints_[0] = target->position_ - offset_from_target;
+                }
+            }
+
+            // Ensure robot 5 continues to follow robot 11 if the switch has already been made
+            auto follower = robots_.at(5);
+            if (follower->waypoints_.size() == 2 && follower->waypoints_[0] == robots_.at(11)->position_)
+            {
+                auto new_leader = robots_.at(11); // Robot 11
+                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                follower->waypoints_[0] = new_leader->position_ - offset_from_target;
+            }
         }
     }
-    else if (globals.FORMATION == "highway-join-leave-rogue")
+    else if (globals.FORMATION == "highway-rogue")
     {
         auto highwayWaypoints = calculateHighwayWaypoints();
 
@@ -1234,6 +1266,7 @@ void Simulator::createOrDeleteRobots()
                         waypoints_leader.push_back(selected_waypoints.lane_end);
                         waypoints_leader.push_back(selected_waypoints.off_ramp_start);
                         waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        selected_waypoints = highwayWaypoints[3][0].second;
                         waypoints_leader.push_back(selected_waypoints.lane_start);
                     }
                 }
@@ -1385,7 +1418,6 @@ void Simulator::createOrDeleteRobots()
                 auto new_leader = robots_.at(11); // Robot 11
                 follower->waypoints_.clear();     // Clear existing waypoints
                 follower->waypoints_.push_back(new_leader->position_);
-                follower->waypoints_.push_back(new_leader->position_); // Ensure there are at least two waypoints
 
                 // Update robot 5's following behavior to continue following robot 11
                 for (int i = 6; i <= globals.NUM_ROBOTS; i++)
