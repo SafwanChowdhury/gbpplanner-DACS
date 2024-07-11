@@ -50,6 +50,7 @@ void Globals::parse_global_args(std::ifstream &config_file)
     MAX_DISTANCE = j["MAX_DISTANCE"];
 
     NUM_ITERS = j["NUM_ITERS"];
+    ROGUE_AGENTS = static_cast<bool>((int)j["ROGUE_AGENTS"]);
 }
 
 Globals::Globals(){};

@@ -1351,45 +1351,48 @@ void Simulator::createOrDeleteRobots()
             }
         }
 
-        // Generate solo agents every few frames
-        if (clock_ % 20 == 0) // Adjust the frequency as needed
+        if (globals.ROGUE_AGENTS)
         {
-            int num_solo_agents = 1; // Number of solo agents to create
-            for (int i = 0; i < num_solo_agents; ++i)
+            // Generate solo agents every few frames
+            if (clock_ % 20 == 0) // Adjust the frequency as needed
             {
-                int direction = random_int(0, 1); // 0 for left to right, 1 for right to left
-                int lane = random_int(0, 1);      // Randomly pick between lanes
-
-                auto waypoints2 = (direction == 0) ? highwayWaypoints[direction][lane] : highwayWaypoints[direction + 2][lane];
-                auto &selected_waypoints = waypoints2.first;
-
-                Eigen::VectorXd starting_position;
-                Eigen::VectorXd ending_position;
-
-                if (direction == 0) // Left to right
+                int num_solo_agents = 1; // Number of solo agents to create
+                for (int i = 0; i < num_solo_agents; ++i)
                 {
-                    starting_position = selected_waypoints.lane_start;
-                    ending_position = selected_waypoints.lane_end;
+                    int direction = random_int(0, 1); // 0 for left to right, 1 for right to left
+                    int lane = random_int(0, 1);      // Randomly pick between lanes
+
+                    auto waypoints2 = (direction == 0) ? highwayWaypoints[direction][lane] : highwayWaypoints[direction + 2][lane];
+                    auto &selected_waypoints = waypoints2.first;
+
+                    Eigen::VectorXd starting_position;
+                    Eigen::VectorXd ending_position;
+
+                    if (direction == 0) // Left to right
+                    {
+                        starting_position = selected_waypoints.lane_start;
+                        ending_position = selected_waypoints.lane_end;
+                    }
+                    else // Right to left
+                    {
+                        starting_position = selected_waypoints.lane_end;
+                        ending_position = selected_waypoints.lane_start;
+                    }
+
+                    std::deque<Eigen::VectorXd> waypoints3{starting_position, ending_position};
+
+                    // Define solo agent radius and color
+                    float solo_robot_radius = globals.ROBOT_RADIUS;
+                    Color solo_color = BLACK;
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
                 }
-                else // Right to left
+                // Delete robots if out of bounds
+                for (auto [rid, robot] : robots_)
                 {
-                    starting_position = selected_waypoints.lane_end;
-                    ending_position = selected_waypoints.lane_start;
-                }
-
-                std::deque<Eigen::VectorXd> waypoints3{starting_position, ending_position};
-
-                // Define solo agent radius and color
-                float solo_robot_radius = globals.ROBOT_RADIUS;
-                Color solo_color = BLACK;
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
-            }
-            // Delete robots if out of bounds
-            for (auto [rid, robot] : robots_)
-            {
-                if ((abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2) && robot->color_.r == 0 && robot->color_.g == 0 && robot->color_.b == 0)
-                {
-                    robots_to_delete.push_back(robot);
+                    if ((abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2) && robot->color_.r == 0 && robot->color_.g == 0 && robot->color_.b == 0)
+                    {
+                        robots_to_delete.push_back(robot);
+                    }
                 }
             }
         }

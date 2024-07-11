@@ -65,6 +65,7 @@ public:
     float MIN_DISTANCE;             // Minimum distance between robots
     float MAX_DISTANCE;             // Maximum distance between robots
     int NUM_ITERS;                  // Number of iterations of GBP per timestep
+    bool ROGUE_AGENTS;              // Whether to include rogue agents in the simulation
     float DAMPING = 0.;             // Damping amount (not used in this work)
 
     Globals();
