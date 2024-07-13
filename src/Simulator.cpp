@@ -62,16 +62,16 @@ void Simulator::draw_highway()
     double lane_width = 8.0 * globals.ROBOT_RADIUS; // Width of each lane
     double road_length = globals.WORLD_SZ;          // Length of each road
     double road_spacing = globals.WORLD_SZ / 4.6;   // Distance between roads
-    double ramp_length = road_length / 5.3;         // Length of on/off ramps
-    double ramp_angle = M_PI / 3.1;                 // Angle of the ramps to the road
-    double ramp_length_off = road_length / 7.8;     // Length of on/off ramps
-    double ramp_angle_off = M_PI / 4.5;             // Angle of the ramps to the road
+    double ramp_length = road_length / 3;           // Length of on/off ramps
+    double ramp_angle = M_PI / 2;                   // Angle of the ramps to the road
+    double ramp_length_off = road_length / 4;       // Length of on/off ramps
+    double ramp_angle_off = M_PI / 2;               // Angle of the ramps to the road
 
     // Ramp positions as variables
-    double on_ramp_start_pos = -road_length / 2.5;
-    double on_ramp_end_pos = -road_length / 3.7;
-    double off_ramp_start_pos = road_length / 3.7;
-    double off_ramp_end_pos = road_length / 2.5;
+    double on_ramp_start_pos = -road_length / 2;
+    double on_ramp_end_pos = road_length / 40;
+    double off_ramp_start_pos = -on_ramp_end_pos;
+    double off_ramp_end_pos = road_length / 2;
 
     for (int road = 0; road < n_roads; ++road)
     {
@@ -176,7 +176,7 @@ void Simulator::draw()
     DrawModel(graphics->groundModel_, graphics->groundModelpos_, 1., WHITE);
 
     // Draw highway roads and lanes if in highway configuration
-    if (globals.FORMATION == "highway-follow-leader")
+    if (globals.FORMATION == "highway-pair")
     {
         draw_highway();
     }
@@ -377,11 +377,42 @@ std::unordered_map<int, std::vector<std::pair<HighwayWaypoints, HighwayWaypoints
     double lane_width = 8.0 * globals.ROBOT_RADIUS;
     double road_spacing = globals.WORLD_SZ / 4.6;
     double road_length = globals.WORLD_SZ;
-    double ramp_length = road_length / 5.3;
-    double ramp_angle = M_PI / 3.1;
-    double ramp_length_off = road_length / 7.8;
-    double ramp_angle_off = M_PI / 4.5;
 
+    double ramp_length;
+    double ramp_angle;
+    double ramp_length_off;
+    double ramp_angle_off;
+
+    double on_ramp_start_pos;
+    double on_ramp_end_pos;
+    double off_ramp_start_pos;
+    double off_ramp_end_pos;
+
+    if (globals.FORMATION == "highway-pair")
+    {
+        ramp_length = road_length / 3;     // Length of on/off ramps
+        ramp_angle = M_PI / 2;             // Angle of the ramps to the road
+        ramp_length_off = road_length / 4; // Length of on/off ramps
+        ramp_angle_off = M_PI / 2;         // Angle of the ramps to the road
+
+        // Ramp positions as variables
+        on_ramp_start_pos = -road_length / 2;
+        on_ramp_end_pos = road_length / 40;
+        off_ramp_start_pos = -on_ramp_end_pos;
+        off_ramp_end_pos = road_length / 2;
+    }
+    else
+    {
+        ramp_length = road_length / 5.3;
+        ramp_angle = M_PI / 3.1;
+        ramp_length_off = road_length / 7.8;
+        ramp_angle_off = M_PI / 4.5;
+
+        on_ramp_start_pos = -road_length / 2.5;
+        on_ramp_end_pos = -road_length / 3.7;
+        off_ramp_start_pos = road_length / 3.7;
+        off_ramp_end_pos = road_length / 2.5;
+    }
     for (int group = 0; group < 4; ++group)
     {
         int road = group % 2;
@@ -390,11 +421,6 @@ std::unordered_map<int, std::vector<std::pair<HighwayWaypoints, HighwayWaypoints
         for (int lane = 0; lane < n_lanes; ++lane)
         {
             double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
-
-            double on_ramp_start_pos = -road_length / 2.5;
-            double on_ramp_end_pos = -road_length / 3.7;
-            double off_ramp_start_pos = road_length / 3.7;
-            double off_ramp_end_pos = road_length / 2.5;
 
             double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
             double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
@@ -1436,6 +1462,70 @@ void Simulator::createOrDeleteRobots()
                 auto new_leader = robots_.at(11); // Robot 11
                 Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
                 follower->waypoints_[0] = new_leader->position_ - offset_from_target;
+            }
+        }
+    }
+    else if (globals.FORMATION == "highway-pair")
+    {
+        auto highwayWaypoints = calculateHighwayWaypoints();
+        // Add this counter at the beginning of your code
+        new_robots_needed_ = true;
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < 3) // Create 1 leader, 1 follower, and 1 additional robot
+        {
+            bool travel_on_highway = false; // Assuming a single road without highway conditions
+            int lane = random_int(0, 1);    // Assuming only one lane
+            bool flip_ramps = false;        // No need to flip ramps for a single road
+
+            auto waypoints = highwayWaypoints[0][lane];
+            auto &selected_waypoints = waypoints.first; // Choose the first set of waypoints
+
+            std::deque<Eigen::VectorXd> waypoints_leader;
+            waypoints_leader.push_back(selected_waypoints.lane_start);
+            waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+            waypoints_leader.push_back(selected_waypoints.lane_end);
+
+            float robot_radius = globals.ROBOT_RADIUS;
+            Color leader_color = GREEN;          // Assign color for the leader
+            Color follower_color = GREEN;        // Assign color for the follower
+            Color additional_robot_color = BLUE; // Assign a distinct color for the additional robot
+
+            // Create the leader robot
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
+
+            // Create the follower robot
+            Eigen::VectorXd starting_position = selected_waypoints.lane_start; // Starting position for the follower
+            std::deque<Eigen::VectorXd> waypoints_follower{starting_position, starting_position};
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_follower, robot_radius, follower_color, true, -1));
+
+            // Create the additional robot
+            std::deque<Eigen::VectorXd> waypoints_additional_robot;
+            waypoints_additional_robot.push_back(selected_waypoints.on_ramp_start);
+            waypoints_additional_robot.push_back(selected_waypoints.on_ramp_merge);
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_additional_robot, robot_radius, additional_robot_color, true, -1));
+        }
+
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow the node in front of them
+            auto leader = robots_.at(0);           // Assuming the leader is at index 0
+            auto follower = robots_.at(1);         // Assuming the follower is at index 1
+            auto additional_robot = robots_.at(2); // Assuming the additional robot is at index 2
+
+            Eigen::VectorXd offset_from_target = Eigen::VectorXd::Zero(4); // Adjust the dimension if necessary
+            follower->waypoints_[0] = leader->position_ - offset_from_target;
+
+            // Check if the leader has passed the second waypoint
+            if (leader->waypoints_.size() < 2)
+            {
+                // Clear the additional robot's waypoints and make it follow the leader
+                additional_robot->waypoints_.clear();
+                additional_robot->waypoints_.push_back(leader->position_ - offset_from_target);
+
+                // Update the additional robot's following behavior to continue following the leader
+                additional_robot->waypoints_[0] = leader->position_ - offset_from_target;
+
+                follower->waypoints_[0] = additional_robot->position_ - offset_from_target;
             }
         }
     }
