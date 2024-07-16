@@ -8,7 +8,7 @@ import time
 # Initialize zero point coordinates
 zero_point = {'coordinateX': 0, 'coordinateY': 0, 'coordinateZ': 0}
 zoom_level = 1
-update_interval = 100  # Update interval in milliseconds
+update_interval = 200  # Update interval in milliseconds
 save_interval = 1000  # Save interval in milliseconds (1 second)
 zero_point_set = False
 

@@ -85,11 +85,11 @@ void Simulator::updateRobotPosition(double x, double y)
         // Update the robot's position
         robot->position_ = newPosition;
 
-        // Update the robot's waypoints
-        if (!robot->waypoints_.empty())
-        {
-            robot->waypoints_[0] = newPosition;
-        }
+        // // Update the robot's waypoints
+        // if (!robot->waypoints_.empty())
+        // {
+        //     robot->waypoints_[0] = newPosition;
+        // }
 
         // Update the robot's variables (planned path)
         if (!robot->variables_.empty())
@@ -128,7 +128,7 @@ void Simulator::timestep()
     if (globals.SIM_MODE != Timestep)
         return;
 
-    createOrDeleteRobots();
+    // createOrDeleteRobots();
     readCoordinatesFromFile();
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
@@ -557,7 +557,7 @@ void Simulator::createOrDeleteRobots()
         initialPosition << 0., 0., 0., 0.;
 
         Eigen::VectorXd waypoint(4);
-        waypoint << 0., 0., 0., 0.;
+        waypoint << 0., 25., 0., 0.;
 
         if (robots_.empty() && globals.NUM_ROBOTS == 1)
         {
