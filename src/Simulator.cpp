@@ -1529,6 +1529,37 @@ void Simulator::createOrDeleteRobots()
             }
         }
     }
+    else if (globals.FORMATION == "blank")
+    {
+        new_robots_needed_ = false;
+        Eigen::VectorXd centre(4);
+        centre << 0., 0., 0., 0.;
+
+        // Clear previous robot list if necessary
+        robots_to_create.clear();
+
+        // Ensure there's exactly one robot to be spawned
+        if (globals.NUM_ROBOTS == 1)
+        {
+            std::deque<Eigen::VectorXd> waypoints; // No waypoints, stationary robot
+
+            // Define robot radius and colour here.
+            float robot_radius = globals.ROBOT_RADIUS;
+            bool isMaster = true; // Single robot can be considered master
+            Color robot_color = DARKBROWN;
+            int master_id = next_rid_; // As it's the only robot, its master ID can be itself
+
+            // Create and initialize the robot at the center position
+            waypoints.push_back(centre);
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id));
+
+            // Print robot data
+            for (auto robot : robots_to_create)
+            {
+                print("Robot ID: ", robot->rid_, " Master ID: ", robot->master_id_, " Master: ", robot->isMaster_, " Position: ", robot->position_.transpose());
+            }
+        }
+    }
     else
     {
         print("Shouldn't reach here, formation not defined!");
