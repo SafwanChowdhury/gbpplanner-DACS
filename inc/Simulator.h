@@ -83,6 +83,11 @@ public:
     void draw();
 
     /*******************************************************************************/
+    // Read the coordinates of the robots from a file.
+    /*******************************************************************************/
+    void readCoordinatesFromFile();
+
+    /*******************************************************************************/
     // Use a kd-tree to perform a radius search for neighbours of a robot within comms. range
     // (Updates the neighbours_ of a robot)
     /*******************************************************************************/
@@ -92,6 +97,11 @@ public:
     // Handles keypresses and mouse input, and updates camera.
     /*******************************************************************************/
     void eventHandler();
+
+    /*******************************************************************************/
+    // Update the position of the robot in the simulator's robot_positions_ map.
+    /*******************************************************************************/
+    void updateRobotPosition(double x, double y);
 
     /*******************************************************************************/
     // Deletes the robot from the simulator's robots_, as well as any variable/factors associated.

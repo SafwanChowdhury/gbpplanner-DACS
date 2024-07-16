@@ -8,6 +8,8 @@
 #include <Graphics.h>
 #include <Robot.h>
 #include <nanoflann.h>
+#include <fstream>
+#include <sstream>
 
 /*******************************************************************************/
 // Raylib setup
@@ -72,6 +74,51 @@ void Simulator::draw()
     EndDrawing();
 };
 
+void Simulator::updateRobotPosition(double x, double y)
+{
+    if (!robots_.empty())
+    {
+        auto robot = robots_.begin()->second; // Get the first (and only) robot
+        Eigen::VectorXd newPosition(4);
+        newPosition << x, y, 0., 0.; // Set new x, y. Keep velocity at 0 for now.
+
+        // Update the robot's position
+        robot->position_ = newPosition;
+
+        // Update the robot's waypoints
+        if (!robot->waypoints_.empty())
+        {
+            robot->waypoints_[0] = newPosition;
+        }
+
+        // Update the robot's variables (planned path)
+        if (!robot->variables_.empty())
+        {
+            robot->variables_.begin()->second->mu_ = newPosition;
+        }
+    }
+}
+
+// Add this method to the Simulator class
+void Simulator::readCoordinatesFromFile()
+{
+    std::ifstream file("robot_coordinates.txt");
+    if (file.is_open())
+    {
+        std::string line;
+        if (std::getline(file, line))
+        {
+            std::istringstream iss(line);
+            double x, y;
+            if (iss >> x >> y)
+            {
+                updateRobotPosition(x, y);
+            }
+        }
+        file.close();
+    }
+}
+
 /*******************************************************************************/
 // Timestep loop of simulator.
 /*******************************************************************************/
@@ -81,6 +128,8 @@ void Simulator::timestep()
     if (globals.SIM_MODE != Timestep)
         return;
 
+    createOrDeleteRobots();
+    readCoordinatesFromFile();
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
     for (auto [r_id, robot] : robots_)
