@@ -78,24 +78,27 @@ void Simulator::updateRobotPosition(double x, double y)
 {
     if (!robots_.empty())
     {
-        auto robot = robots_.begin()->second; // Get the first (and only) robot
+        auto robot = robots_.begin()->second;
         Eigen::VectorXd newPosition(4);
-        newPosition << x, y, 0., 0.; // Set new x, y. Keep velocity at 0 for now.
+        newPosition << x, y, 0., 0.;
 
         // Update the robot's position
         robot->position_ = newPosition;
 
-        // // Update the robot's waypoints
-        // if (!robot->waypoints_.empty())
-        // {
-        //     robot->waypoints_[0] = newPosition;
-        // }
-
-        // Update the robot's variables (planned path)
-        if (!robot->variables_.empty())
+        // Update the robot's first waypoint to its current position
+        if (robot->waypoints_.size() > 1)
         {
-            robot->variables_.begin()->second->mu_ = newPosition;
+            robot->waypoints_[0] = newPosition;
         }
+
+        // // Update the robot's variables (planned path)
+        // if (!robot->variables_.empty())
+        // {
+        //     robot->variables_.begin()->second->change_variable_prior(newPosition);
+
+        //     // Recalculate the planned path
+        //     robot->updatePlannedPath();
+        // }
     }
 }
 
@@ -124,13 +127,13 @@ void Simulator::readCoordinatesFromFile()
 /*******************************************************************************/
 void Simulator::timestep()
 {
-
     if (globals.SIM_MODE != Timestep)
         return;
 
-    // createOrDeleteRobots();
+    // Read new coordinates from file and update robot position
     readCoordinatesFromFile();
-    // Create and/or destory factors depending on a robot's neighbours
+
+    // Create and/or destroy factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
     for (auto [r_id, robot] : robots_)
     {
@@ -139,6 +142,12 @@ void Simulator::timestep()
 
     // If the communications failure rate is non-zero, activate/deactivate robot comms
     setCommsFailure(globals.COMMS_FAILURE_RATE);
+
+    // Update planned paths for all robots
+    for (auto &[rid, robot] : robots_)
+    {
+        robot->updatePlannedPath();
+    }
 
     // Perform iterations of GBP. Ideally the internal and external iterations
     // should be interleaved better. Here it is assumed there are an equal number.
@@ -563,6 +572,7 @@ void Simulator::createOrDeleteRobots()
         {
             std::deque<Eigen::VectorXd> waypoints;
             waypoints.push_back(initialPosition);
+            waypoints.push_back(waypoint);
             waypoints.push_back(waypoint);
 
             float robot_radius = globals.ROBOT_RADIUS;
