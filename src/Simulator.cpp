@@ -91,14 +91,14 @@ void Simulator::updateRobotPosition(double x, double y)
             robot->waypoints_[0] = newPosition;
         }
 
-        // // Update the robot's variables (planned path)
-        // if (!robot->variables_.empty())
-        // {
-        //     robot->variables_.begin()->second->change_variable_prior(newPosition);
+        // Update the robot's variables (planned path)
+        if (!robot->variables_.empty())
+        {
+            robot->variables_.begin()->second->change_variable_prior(newPosition);
 
-        //     // Recalculate the planned path
-        //     robot->updatePlannedPath();
-        // }
+            // Recalculate the planned path
+            robot->updatePlannedPath();
+        }
     }
 }
 

@@ -8,14 +8,14 @@ import time
 # Initialize zero point coordinates
 zero_point = {'coordinateX': 0, 'coordinateY': 0, 'coordinateZ': 0}
 zoom_level = 1
-update_interval = 200  # Update interval in milliseconds
+update_interval = 100  # Update interval in milliseconds
 save_interval = 1000  # Save interval in milliseconds (1 second)
 zero_point_set = False
 
 # List of truck URLs
 truck_urls = [
     'http://192.168.1.86:39847',
-    # 'http://192.168.1.150:39847',
+    'http://192.168.1.150:39847',
     # Add more URLs here as needed
 ]
 
@@ -43,9 +43,9 @@ def update_data():
         update_ui(truck_data)
         update_radar(truck_data)
         
-        # Save coordinates of the first robot if zero point has been set
-        if zero_point_set and truck_data[0]:
-            save_robot_coordinates(truck_data[0])
+        # Save coordinates of all robots if zero point has been set
+        if zero_point_set:
+            save_robot_coordinates(truck_data)
 
     root.after(update_interval, update_data)
 
@@ -95,14 +95,15 @@ def reset_zero_point():
         zero_point_set = True
 
 # Function to save robot coordinates to file
-def save_robot_coordinates(data):
+def save_robot_coordinates(truck_data):
     try:
-        os.chdir("../../build")  # Change to the build directory
-        x = round(data['coordinateX'] - zero_point['coordinateX'], 2)
-        y = round(data['coordinateZ'] - zero_point['coordinateZ'], 2)
+        os.chdir("../../build")  # Change to the correct directory
         with open("robot_coordinates.txt", "w") as f:
-            f.write(f"{x} {y}")
-        print(f"Saved robot coordinates: ({x}, {y})")
+            for i, data in enumerate(truck_data):
+                x = round(data['coordinateX'] - zero_point['coordinateX'], 2)
+                y = round(data['coordinateZ'] - zero_point['coordinateZ'], 2)
+                f.write(f"{i+1} {x} {y}\n")
+        print(f"Saved coordinates for {len(truck_data)} robots")
     except Exception as e:
         print(f"Error saving coordinates: {e}")
     finally:
