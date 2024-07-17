@@ -19,6 +19,9 @@ truck_urls = [
     # Add more URLs here as needed
 ]
 
+# Dictionary to store the last known coordinates for each robot
+last_known_coordinates = {}
+
 # Function to fetch data from the localhost API
 def fetch_data(url):
     try:
@@ -34,10 +37,24 @@ def fetch_data(url):
 def update_data():
     global zero_point_set
     truck_data = []
-    for url in truck_urls:
+    for i, url in enumerate(truck_urls):
         data = fetch_data(url)
         if data:
             truck_data.append(data)
+            # Update last known coordinates
+            last_known_coordinates[i] = {
+                'coordinateX': data['coordinateX'],
+                'coordinateZ': data['coordinateZ']
+            }
+        elif i in last_known_coordinates:
+            # Use last known coordinates if available
+            truck_data.append(last_known_coordinates[i])
+        else:
+            # If no data and no last known coordinates, use zero point
+            truck_data.append({
+                'coordinateX': zero_point['coordinateX'],
+                'coordinateZ': zero_point['coordinateZ']
+            })
     
     if truck_data:
         update_ui(truck_data)
@@ -60,9 +77,14 @@ def update_ui(truck_data):
 
         truck_labels[i]['coordinateX'].set(f"Robot {i+1} Coordinate X: {relative_coordinateX}")
         truck_labels[i]['coordinateZ'].set(f"Robot {i+1} Coordinate Z: {relative_coordinateZ}")
-        truck_labels[i]['rotationX'].set(f"Robot {i+1} Rotation X: {round(math.degrees(data['rotationX']), 2)}°")
-        truck_labels[i]['rotationY'].set(f"Robot {i+1} Rotation Y: {round(math.degrees(data['rotationY']), 2)}°")
-        truck_labels[i]['rotationZ'].set(f"Robot {i+1} Rotation Z: {round(math.degrees(data['rotationZ']), 2)}°")
+        if 'rotationX' in data:
+            truck_labels[i]['rotationX'].set(f"Robot {i+1} Rotation X: {round(math.degrees(data['rotationX']), 2)}°")
+            truck_labels[i]['rotationY'].set(f"Robot {i+1} Rotation Y: {round(math.degrees(data['rotationY']), 2)}°")
+            truck_labels[i]['rotationZ'].set(f"Robot {i+1} Rotation Z: {round(math.degrees(data['rotationZ']), 2)}°")
+        else:
+            truck_labels[i]['rotationX'].set(f"Robot {i+1} Rotation X: N/A")
+            truck_labels[i]['rotationY'].set(f"Robot {i+1} Rotation Y: N/A")
+            truck_labels[i]['rotationZ'].set(f"Robot {i+1} Rotation Z: N/A")
 
 # Function to update the radar view
 def update_radar(truck_data):

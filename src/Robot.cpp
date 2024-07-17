@@ -142,24 +142,39 @@ void Robot::updateHorizon()
 /***************************************************************************************************/
 void Robot::updateInterrobotFactors()
 {
-
     // Search through currently connected rids. If any are not in neighbours, delete interrobot factors.
-    for (auto rid : connected_r_ids_)
+    for (auto it = connected_r_ids_.begin(); it != connected_r_ids_.end();)
     {
-        if (std::find(neighbours_.begin(), neighbours_.end(), rid) == neighbours_.end())
+        if (std::find(neighbours_.begin(), neighbours_.end(), *it) == neighbours_.end())
         {
-            deleteInterrobotFactors(sim_->robots_.at(rid));
-        };
+            auto robot_it = sim_->robots_.find(*it);
+            if (robot_it != sim_->robots_.end())
+            {
+                deleteInterrobotFactors(robot_it->second);
+            }
+            it = connected_r_ids_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
+
     // Search through neighbours. If any are not in currently connected rids, create interrobot factors.
     for (auto rid : neighbours_)
     {
         if (std::find(connected_r_ids_.begin(), connected_r_ids_.end(), rid) == connected_r_ids_.end())
         {
-            createInterrobotFactors(sim_->robots_.at(rid));
-            if (!sim_->symmetric_factors)
-                sim_->robots_.at(rid)->connected_r_ids_.push_back(rid_);
-        };
+            auto robot_it = sim_->robots_.find(rid);
+            if (robot_it != sim_->robots_.end())
+            {
+                createInterrobotFactors(robot_it->second);
+                if (!sim_->symmetric_factors)
+                {
+                    robot_it->second->connected_r_ids_.push_back(rid_);
+                }
+            }
+        }
     }
 }
 
@@ -226,33 +241,30 @@ void Robot::updatePlannedPath()
     if (waypoints_.size() < 2)
         return;
 
-    Eigen::VectorXd start = waypoints_[0];
+    Eigen::VectorXd start = position_;
     Eigen::VectorXd goal = waypoints_[1];
 
     Eigen::VectorXd direction = goal - start;
-    direction.segment<2>(2).setZero();
+    direction.segment<2>(2).setZero(); // Set velocity components to zero
 
-    for (const auto &[key, variable] : variables_)
+    int num_variables = variables_.size();
+    int variable_count = 0;
+    for (auto &[key, variable] : variables_)
     {
         if (variable)
-        { // Add null check
-            double t = static_cast<double>(variable->v_id_) / (num_variables_ - 1);
+        {
+            double t = static_cast<double>(variable_count) / (num_variables - 1);
             Eigen::VectorXd interpolated = start + t * direction;
 
-            // Add try-catch block to catch any exceptions
-            try
-            {
-                variable->change_variable_prior(interpolated);
-            }
-            catch (const std::exception &e)
-            {
-                std::cerr << "Exception caught in updatePlannedPath: " << e.what() << std::endl;
-            }
+            variable->change_variable_prior(interpolated);
+            variable_count++;
         }
-        else
-        {
-            std::cerr << "Null variable found in updatePlannedPath" << std::endl;
-        }
+    }
+
+    // Update the first waypoint to be the current position
+    if (!waypoints_.empty())
+    {
+        waypoints_[0] = position_;
     }
 }
 
