@@ -91,7 +91,7 @@ void Variable::change_variable_prior(const Eigen::VectorXd &new_mu)
 
     eta_prior_ = lam_prior_ * new_mu;
     mu_ = new_mu;
-    belief_ = Message{eta_prior_, lam_prior_, mu_};
+    belief_ = Message{eta_prior_, lam_prior_, mu_}; // check this
 
     for (auto &[fkey, fac] : factors_)
     {
