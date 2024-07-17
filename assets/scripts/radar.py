@@ -14,8 +14,8 @@ zero_point_set = False
 
 # List of truck URLs
 truck_urls = [
-    'http://192.168.1.86:39847',
     'http://192.168.1.150:39847',
+    'http://192.168.1.86:39847',
     # Add more URLs here as needed
 ]
 
@@ -98,8 +98,7 @@ def update_radar(truck_data):
         z = (data['coordinateZ'] - zero_point['coordinateZ']) * zoom_level
         
         # Applying rotation (90 degrees clockwise)
-        x_rotated = z
-        z_rotated = -x
+        x_rotated, z_rotated = rotate_90_degrees_clockwise(x, z)
 
         color = colors[i % len(colors)]
         radar_canvas.create_oval(250+x_rotated-5, 250+z_rotated-5, 250+x_rotated+5, 250+z_rotated+5, fill=color)
@@ -116,6 +115,10 @@ def reset_zero_point():
         zero_point_label.set(f"Zero Point Set to: ({round(zero_point['coordinateX'], 2)}, {round(zero_point['coordinateY'], 2)}, {round(zero_point['coordinateZ'], 2)})")
         zero_point_set = True
 
+# Function to rotate coordinates 90 degrees clockwise
+def rotate_90_degrees_clockwise(x, y):
+    return y, -x
+
 # Function to save robot coordinates to file
 def save_robot_coordinates(truck_data):
     try:
@@ -124,8 +127,12 @@ def save_robot_coordinates(truck_data):
             for i, data in enumerate(truck_data):
                 x = round(data['coordinateX'] - zero_point['coordinateX'], 2)
                 y = round(data['coordinateZ'] - zero_point['coordinateZ'], 2)
-                f.write(f"{i+1} {x} {y}\n")
-        print(f"Saved coordinates for {len(truck_data)} robots")
+                
+                # Rotate coordinates 90 degrees clockwise
+                rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
+                
+                f.write(f"{i+1} {rotated_x} {rotated_y}\n")
+        print(f"Saved rotated coordinates for {len(truck_data)} robots")
     except Exception as e:
         print(f"Error saving coordinates: {e}")
     finally:
