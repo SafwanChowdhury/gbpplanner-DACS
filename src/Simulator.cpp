@@ -81,7 +81,7 @@ void Simulator::updateRobotPosition(int robot_index, double x, double y)
     {
         auto robot = it->second;
         Eigen::VectorXd newPosition(4);
-        newPosition << x, y, 0., 0.; // Set new x, y. Keep velocity at 0 for now.
+        newPosition << x, y, 0., 0.; // Keep velocity at 0 for the robot's actual position
 
         // Update the robot's position
         robot->position_ = newPosition;

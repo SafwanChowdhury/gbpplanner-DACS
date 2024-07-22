@@ -245,7 +245,8 @@ void Robot::updatePlannedPath()
     Eigen::VectorXd goal = waypoints_[1];
 
     Eigen::VectorXd direction = goal - start;
-    direction.segment<2>(2).setZero(); // Set velocity components to zero
+    double distance = direction.segment<2>(0).norm();
+    Eigen::Vector2d velocity = direction.segment<2>(0).normalized() * globals.MAX_SPEED;
 
     int num_variables = variables_.size();
     int variable_count = 0;
@@ -254,11 +255,21 @@ void Robot::updatePlannedPath()
         if (variable)
         {
             double t = static_cast<double>(variable_count) / (num_variables - 1);
-            Eigen::VectorXd interpolated = start + t * direction;
+            Eigen::VectorXd interpolated(4);
+            interpolated.segment<2>(0) = start.segment<2>(0) + t * direction.segment<2>(0);
+            interpolated.segment<2>(2) = velocity;
 
             variable->change_variable_prior(interpolated);
             variable_count++;
         }
+    }
+
+    if (variables_.find(Key(rid_, 6)) != variables_.end())
+    {
+        auto var6 = variables_[Key(rid_, 6)];
+        std::cout << "Robot " << rid_ << " - Variable 6 - Position: ("
+                  << var6->mu_(0) << ", " << var6->mu_(1)
+                  << ") Velocity: (" << var6->mu_(2) << ", " << var6->mu_(3) << ")" << std::endl;
     }
 
     // Update the first waypoint to be the current position
@@ -275,6 +286,7 @@ void Robot::updatePlannedPath()
 void Robot::draw()
 {
     Color col = (interrobot_comms_active_) ? color_ : GRAY;
+
     // Draw planned path
     if (globals.DRAW_PATH)
     {
@@ -283,11 +295,42 @@ void Robot::draw()
         {
             if (!variable->valid_)
                 continue;
-            DrawSphere(Vector3{(float)variable->mu_(0), height_3D_, (float)variable->mu_(1)}, 0.5 * robot_radius_, ColorAlpha(col, 0.5));
+
+            // Draw variable position
+            Vector3 position = {(float)variable->mu_(0), height_3D_, (float)variable->mu_(1)};
+            DrawSphere(position, 0.5 * robot_radius_, ColorAlpha(col, 0.5));
+
+            // Draw velocity vector
+            Vector3 velocity = {(float)variable->mu_(2), 0, (float)variable->mu_(3)};
+            float velocityMagnitude = Vector3Length(velocity);
+            if (velocityMagnitude > 0.001f) // Only draw if velocity is significant
+            {
+                float scale = 2.0f; // Adjust this value to make the vector longer or shorter
+                Vector3 scaledVelocity = Vector3Scale(velocity, scale);
+                Vector3 endPoint = Vector3Add(position, scaledVelocity);
+
+                // Draw main velocity vector
+                DrawLine3D(position, endPoint, RED);
+
+                // Draw arrowhead
+                float arrowSize = 0.25f * robot_radius_;
+                Vector3 arrowDir = Vector3Normalize(scaledVelocity);
+                Vector3 arrowRight = Vector3CrossProduct(arrowDir, (Vector3){0, 1, 0});
+                Vector3 arrowUp = Vector3CrossProduct(arrowRight, arrowDir);
+
+                Vector3 arrowPoint1 = Vector3Add(endPoint, Vector3Scale(Vector3Add(Vector3Scale(arrowRight, -0.5f), Vector3Scale(arrowUp, -0.5f)), arrowSize));
+                Vector3 arrowPoint2 = Vector3Add(endPoint, Vector3Scale(Vector3Add(Vector3Scale(arrowRight, 0.5f), Vector3Scale(arrowUp, -0.5f)), arrowSize));
+
+                DrawLine3D(endPoint, arrowPoint1, RED);
+                DrawLine3D(endPoint, arrowPoint2, RED);
+                DrawLine3D(arrowPoint1, arrowPoint2, RED);
+            }
         }
+
         for (auto [fid, factor] : factors_)
             factor->draw();
     }
+
     // Draw connected robots
     if (globals.DRAW_INTERROBOT)
     {
@@ -309,6 +352,7 @@ void Robot::draw()
             DrawCubeV(Vector3{(float)waypoints_[wp_idx](0), height_3D_, (float)waypoints_[wp_idx](1)}, Vector3{1.f * robot_radius_, 1.f * robot_radius_, 1.f * robot_radius_}, col);
         }
     }
+
     // Draw the actual position of the robot. This uses the robotModel defined in Graphics.cpp, others can be used.
     DrawModel(sim_->graphics->robotModel_, Vector3{(float)position_(0), height_3D_, (float)position_(1)}, robot_radius_, col);
 };
