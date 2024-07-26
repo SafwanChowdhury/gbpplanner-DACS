@@ -74,45 +74,40 @@ void Simulator::draw()
     EndDrawing();
 };
 
-void Simulator::updateRobotPosition(double x, double y)
+void Simulator::updateRobotPosition(int robot_index, double x, double y)
 {
-    if (!robots_.empty())
+    auto it = robots_.find(robot_index);
+    if (it != robots_.end())
     {
-        auto robot = robots_.begin()->second; // Get the first (and only) robot
+        auto robot = it->second;
         Eigen::VectorXd newPosition(4);
-        newPosition << x, y, 0., 0.; // Set new x, y. Keep velocity at 0 for now.
+        newPosition << x, y, 0., 0.; // Keep velocity at 0 for the robot's actual position
 
         // Update the robot's position
         robot->position_ = newPosition;
 
-        // // Update the robot's waypoints
-        // if (!robot->waypoints_.empty())
-        // {
-        //     robot->waypoints_[0] = newPosition;
-        // }
-
-        // Update the robot's variables (planned path)
-        if (!robot->variables_.empty())
+        // Update the robot's first waypoint to its current position
+        if (!robot->waypoints_.empty())
         {
-            robot->variables_.begin()->second->mu_ = newPosition;
+            robot->waypoints_[0] = newPosition;
         }
     }
 }
 
-// Add this method to the Simulator class
 void Simulator::readCoordinatesFromFile()
 {
     std::ifstream file("robot_coordinates.txt");
     if (file.is_open())
     {
         std::string line;
-        if (std::getline(file, line))
+        while (std::getline(file, line))
         {
             std::istringstream iss(line);
+            int robot_index;
             double x, y;
-            if (iss >> x >> y)
+            if (iss >> robot_index >> x >> y)
             {
-                updateRobotPosition(x, y);
+                updateRobotPosition(robot_index, x, y);
             }
         }
         file.close();
@@ -128,13 +123,19 @@ void Simulator::timestep()
     if (globals.SIM_MODE != Timestep)
         return;
 
-    // createOrDeleteRobots();
     readCoordinatesFromFile();
+
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
-    for (auto [r_id, robot] : robots_)
+
+    for (auto &[r_id, robot] : robots_)
     {
-        robot->updateInterrobotFactors();
+
+        if (robot) // Check if the robot pointer is valid
+        {
+
+            robot->updateInterrobotFactors();
+        }
     }
 
     // If the communications failure rate is non-zero, activate/deactivate robot comms
@@ -149,10 +150,13 @@ void Simulator::timestep()
     }
 
     // Update the robot current and horizon states by one timestep
-    for (auto [r_id, robot] : robots_)
+    for (auto &[r_id, robot] : robots_)
     {
-        robot->updateHorizon();
-        robot->updateCurrent();
+        if (robot) // Check if the robot pointer is valid
+        {
+            robot->updateHorizon();
+            robot->updateCurrent();
+        }
     }
 
     // Increase simulation clock by one timestep
@@ -552,22 +556,26 @@ void Simulator::createOrDeleteRobots()
     }
     else if (globals.FORMATION == "blank")
     {
-        new_robots_needed_ = true;
-        Eigen::VectorXd initialPosition(4);
-        initialPosition << 0., 0., 0., 0.;
-
-        Eigen::VectorXd waypoint(4);
-        waypoint << 0., 25., 0., 0.;
-
-        if (robots_.empty() && globals.NUM_ROBOTS == 1)
+        new_robots_needed_ = false; // We only need to create the robots once
+        if (robots_.empty() && globals.NUM_ROBOTS == 2)
         {
-            std::deque<Eigen::VectorXd> waypoints;
-            waypoints.push_back(initialPosition);
-            waypoints.push_back(waypoint);
+            for (int i = 1; i <= 2; ++i)
+            {
+                Eigen::VectorXd initialPosition(4);
+                initialPosition << 0., 0., 0., 0.;
 
-            float robot_radius = globals.ROBOT_RADIUS;
-            Color robot_color = DARKBROWN;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
+                Eigen::VectorXd waypoint(4);
+                waypoint << 0., 25., 0., 0.;
+
+                std::deque<Eigen::VectorXd> waypoints;
+                waypoints.push_back(initialPosition);
+                waypoints.push_back(waypoint);
+                waypoints.push_back(waypoint);
+
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot
+                robots_to_create.push_back(std::make_shared<Robot>(this, i, waypoints, robot_radius, robot_color));
+            }
         }
     }
     else

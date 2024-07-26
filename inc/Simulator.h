@@ -101,7 +101,7 @@ public:
     /*******************************************************************************/
     // Update the position of the robot in the simulator's robot_positions_ map.
     /*******************************************************************************/
-    void updateRobotPosition(double x, double y);
+    void updateRobotPosition(int robot_index, double x, double y);
 
     /*******************************************************************************/
     // Deletes the robot from the simulator's robots_, as well as any variable/factors associated.
