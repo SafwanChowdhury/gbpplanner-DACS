@@ -107,6 +107,40 @@ void Robot::updateCurrent()
 {
     // Move plan: move plan current state by plan increment
     Eigen::VectorXd increment = ((*this)[1]->mu_ - (*this)[0]->mu_) * globals.TIMESTEP / globals.T0;
+
+    // Calculate forward acceleration and turn angle
+    Eigen::Vector2d current_velocity = (*this)[0]->mu_.segment<2>(2);
+    Eigen::Vector2d next_velocity = (*this)[1]->mu_.segment<2>(2);
+
+    double current_speed = current_velocity.norm();
+    double next_speed = next_velocity.norm();
+
+    // Forward acceleration
+    double forward_acceleration = (next_speed - current_speed) / globals.TIMESTEP;
+
+    // Turn angle
+    double turn_angle = std::atan2(current_velocity.x() * next_velocity.y() - current_velocity.y() * next_velocity.x(),
+                                   current_velocity.dot(next_velocity));
+
+    // Calculate heading (assuming positive x-axis is 0 degrees)
+    double current_heading = std::atan2(current_velocity.y(), current_velocity.x());
+
+    // print the increment vector for robot id 5
+    if (rid_ == 5)
+    {
+        // Print the data in a readable format
+        std::cout << "Robot 5 Data:" << std::endl;
+        std::cout << "  Increment:" << std::endl;
+        std::cout << "    Position change (x, y): (" << increment[0] << ", " << increment[1] << ")" << std::endl;
+        std::cout << "    Velocity change (dx/dt, dy/dt): (" << increment[2] << ", " << increment[3] << ")" << std::endl;
+        std::cout << "  Derived data:" << std::endl;
+        std::cout << "    Current speed: " << current_speed << std::endl;
+        std::cout << "    Next speed: " << next_speed << std::endl;
+        std::cout << "    Forward acceleration: " << forward_acceleration << std::endl;
+        std::cout << "    Current heading (degrees): " << current_heading * 180 / M_PI << std::endl;
+        std::cout << "    Turn angle (degrees): " << turn_angle * 180 / M_PI << std::endl;
+        std::cout << std::endl;
+    }
     // In GBP we do this by modifying the prior on the variable
     getVar(0)->change_variable_prior(getVar(0)->mu_ + increment);
     // Real pose update
