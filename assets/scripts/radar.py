@@ -15,7 +15,7 @@ zero_point_set = False
 # List of truck URLs
 truck_urls = [
     'http://192.168.1.150:39847',
-    'http://192.168.1.86:39847',
+    'http://192.168.1.49:39847',
     # Add more URLs here as needed
 ]
 
