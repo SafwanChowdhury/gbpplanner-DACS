@@ -1,0 +1,31 @@
+This file contains important coordinates for the testing in the simualtor. The command for truck teleportation is included.  
+
+Truck 2 Spawn:  goto -43190;-2;-19315 ->  ctrl+F9
+
+Truck 2 Fuel Stop: goto -44058;—3;-20127
+
+Truck 1 Spawn: -42103 -12 -17655
+
+Truck 1 Road: -42698, 7, -18912
+
+Truck 1 set up laptop 
+- steering offset -0.01
+- Control smoothness 1
+- Sensitivity 0.4
+- Max Control 0.8
+
+TimeToMerge - 1:36.37
+TimeToEntry - 1:28.73
+
+
+CENTER POINT -42698 7 -19566
+
+
+
+
+CAMBS Location
+
+-37924 32 -16057 - Fuel Stop
+
+
+-37472 20 -17014 - A14

@@ -11,10 +11,11 @@ zoom_level = 1
 update_interval = 100  # Update interval in milliseconds
 save_interval = 1000  # Save interval in milliseconds (1 second)
 zero_point_set = False
+canvas_size = 1000  # GBPPlanner world size
+zoom_factor = 3.44  # new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
 
 # List of truck URLs
 truck_urls = [
-    'http://192.168.1.150:39847',
     'http://192.168.1.49:39847',
     # Add more URLs here as needed
 ]
@@ -119,20 +120,25 @@ def reset_zero_point():
 def rotate_90_degrees_clockwise(x, y):
     return y, -x
 
-# Function to save robot coordinates to file
+
 def save_robot_coordinates(truck_data):
     try:
         os.chdir("../../build")  # Change to the correct directory
         with open("robot_coordinates.txt", "w") as f:
             for i, data in enumerate(truck_data):
-                x = round(data['coordinateX'] - zero_point['coordinateX'], 2)
-                y = round(data['coordinateZ'] - zero_point['coordinateZ'], 2)
+                # Calculate coordinates using the same method as drawMap.py
+                x = (data['coordinateX'] - zero_point['coordinateX']) * 10 / zoom_factor
+                y = (data['coordinateZ'] - zero_point['coordinateZ']) * 10 / zoom_factor
                 
                 # Rotate coordinates 90 degrees clockwise
                 rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
                 
+                # Round the coordinates to 2 decimal places
+                rotated_x = round(rotated_x, 2)
+                rotated_y = round(rotated_y, 2)
+                
                 f.write(f"{i+1} {rotated_x} {rotated_y}\n")
-        print(f"Saved rotated coordinates for {len(truck_data)} robots")
+        print(f"Saved scaled and rotated coordinates for {len(truck_data)} robots")
     except Exception as e:
         print(f"Error saving coordinates: {e}")
     finally:
