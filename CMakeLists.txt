@@ -31,6 +31,7 @@ add_executable(gbpplanner
     src/Utils.cpp 
     src/Graphics.cpp 
     src/Radar.cpp
+    src/WaypointSender.cpp
 )
 target_link_libraries(gbpplanner PUBLIC gbp)
 

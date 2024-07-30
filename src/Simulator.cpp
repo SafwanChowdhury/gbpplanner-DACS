@@ -16,11 +16,19 @@
 // Raylib setup
 /*******************************************************************************/
 Simulator::Simulator()
-    : radar()
+    : radar(), waypoint_sender(), use_radar_(false)
 {
     SetTraceLogLevel(LOG_ERROR);
-    radar.addServer("192.168.1.49", 39846);
-    radar.start();
+    if (use_radar_)
+    {
+        radar.addServer("192.168.1.49", 39846);
+        radar.start();
+    }
+    else
+    {
+        waypoint_sender.loadWaypoints();
+        waypoint_sender.startSendingWaypoints();
+    }
 
     if (globals.DISPLAY)
     {
@@ -56,7 +64,14 @@ Simulator::~Simulator()
         delete graphics;
         CloseWindow();
     }
-    radar.stop();
+    if (use_radar_)
+    {
+        radar.stop();
+    }
+    else
+    {
+        waypoint_sender.stopSendingWaypoints();
+    }
 };
 
 /*******************************************************************************/
@@ -112,11 +127,22 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y)
 
 void Simulator::updateRobotsFromRadar()
 {
-    auto coordinates = radar.getLatestCoordinates();   // Get the latest coordinates from the radar
-    for (const auto &[server_id, coord] : coordinates) // Iterate through the coordinates
+    if (use_radar_)
     {
-        int robot_id = mapServerToRobot(server_id);          // Map the server id to a robot id
-        updateRobotPosition(robot_id, coord.x(), coord.y()); // Update the robot's position
+        auto coordinates = radar.getLatestCoordinates();
+        for (const auto &[server_id, coord] : coordinates)
+        {
+            int robot_id = mapServerToRobot(server_id);
+            updateRobotPosition(robot_id, coord.x(), coord.y());
+        }
+    }
+    else
+    {
+        auto waypoints = waypoint_sender.getLatestWaypoints();
+        for (const auto &[robot_id, waypoint] : waypoints)
+        {
+            updateRobotPosition(robot_id, waypoint.x(), waypoint.y());
+        }
     }
 }
 

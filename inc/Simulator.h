@@ -21,6 +21,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include "Radar.h"
+#include "WaypointSender.h"
 
 class Robot;
 class Graphics;
@@ -131,7 +132,9 @@ public:
     }
 
     Radar radar;
+    WaypointSender waypoint_sender;
 
     void updateRobotsFromRadar();
     int mapServerToRobot(const std::string &server_id);
+    bool use_radar_; // Flag to switch between radar and waypoint sender
 };
