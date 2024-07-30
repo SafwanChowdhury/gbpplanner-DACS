@@ -4,6 +4,7 @@ import requests
 import math
 import os
 import time
+from datetime import datetime
 
 # Initialize zero point coordinates
 zero_point = {'coordinateX': 0, 'coordinateY': 0, 'coordinateZ': 0}
@@ -13,6 +14,8 @@ save_interval = 1000  # Save interval in milliseconds (1 second)
 zero_point_set = False
 canvas_size = 1000  # GBPPlanner world size
 zoom_factor = 3.44  # new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
+is_recording = False
+recorded_waypoints = []
 
 # List of truck URLs
 truck_urls = [
@@ -22,6 +25,37 @@ truck_urls = [
 
 # Dictionary to store the last known coordinates for each robot
 last_known_coordinates = {}
+
+# Function to start recording waypoints
+def start_recording():
+    global is_recording
+    is_recording = True
+    recorded_waypoints.clear()
+    print("Started recording waypoints")
+
+# Function to stop recording and save waypoints
+def stop_recording():
+    global is_recording
+    is_recording = False
+    if recorded_waypoints:
+        save_recorded_waypoints()
+    print("Stopped recording waypoints")
+
+# Function to save recorded waypoints
+def save_recorded_waypoints():
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"waypoints_{current_time}.txt"
+    try:
+        os.chdir("../../build")  # Change to the correct directory
+        with open(filename, "a") as f:
+            for waypoint in recorded_waypoints:
+                f.write(f"{waypoint['robot']} {waypoint['x']} {waypoint['y']}\n")
+        print(f"Saved {len(recorded_waypoints)} waypoints to {filename}")
+    except Exception as e:
+        print(f"Error saving waypoints: {e}")
+    finally:
+        os.chdir(original_dir)  # Change back to the original directory
+
 
 # Function to fetch data from the localhost API
 def fetch_data(url):
@@ -36,22 +70,30 @@ def fetch_data(url):
 
 # Function to update the UI with fetched data
 def update_data():
-    global zero_point_set
+    global zero_point_set, is_recording
     truck_data = []
     for i, url in enumerate(truck_urls):
         data = fetch_data(url)
         if data:
             truck_data.append(data)
-            # Update last known coordinates
             last_known_coordinates[i] = {
                 'coordinateX': data['coordinateX'],
                 'coordinateZ': data['coordinateZ']
             }
+            
+            # Record waypoint if recording is active
+            if is_recording and zero_point_set:
+                x = (data['coordinateX'] - zero_point['coordinateX']) * 10 / zoom_factor
+                y = (data['coordinateZ'] - zero_point['coordinateZ']) * 10 / zoom_factor
+                rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
+                recorded_waypoints.append({
+                    'robot': i+1,
+                    'x': round(rotated_x, 2),
+                    'y': round(rotated_y, 2)
+                })
         elif i in last_known_coordinates:
-            # Use last known coordinates if available
             truck_data.append(last_known_coordinates[i])
         else:
-            # If no data and no last known coordinates, use zero point
             truck_data.append({
                 'coordinateX': zero_point['coordinateX'],
                 'coordinateZ': zero_point['coordinateZ']
@@ -66,6 +108,7 @@ def update_data():
             save_robot_coordinates(truck_data)
 
     root.after(update_interval, update_data)
+
 
 # Function to update the UI elements
 def update_ui(truck_data):
@@ -196,6 +239,11 @@ zoom_in_button.pack()
 zoom_out_button = ttk.Button(root, text="Zoom Out", command=zoom_out)
 zoom_out_button.pack()
 
+start_button = ttk.Button(root, text="Start Recording", command=start_recording)
+start_button.pack()
+
+stop_button = ttk.Button(root, text="Stop Recording", command=stop_recording)
+stop_button.pack()
 # Initial call to update the data
 update_data()
 
