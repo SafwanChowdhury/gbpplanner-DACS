@@ -30,6 +30,7 @@ add_executable(gbpplanner
     src/Simulator.cpp
     src/Utils.cpp 
     src/Graphics.cpp 
+    src/Radar.cpp
 )
 target_link_libraries(gbpplanner PUBLIC gbp)
 

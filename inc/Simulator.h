@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <vector>
 #include <Eigen/Dense>
+#include "Radar.h"
 
 class Robot;
 class Graphics;
@@ -128,4 +129,9 @@ public:
     {
         return std::uniform_int_distribution<int>(lower, upper)(gen_uniform_int);
     }
+
+    Radar radar;
+
+    void updateRobotsFromRadar();
+    int mapServerToRobot(const std::string &server_id);
 };

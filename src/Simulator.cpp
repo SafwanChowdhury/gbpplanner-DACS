@@ -10,13 +10,18 @@
 #include <nanoflann.h>
 #include <fstream>
 #include <sstream>
+#include "json.hpp"
 
 /*******************************************************************************/
 // Raylib setup
 /*******************************************************************************/
 Simulator::Simulator()
+    : radar()
 {
     SetTraceLogLevel(LOG_ERROR);
+    radar.addServer("192.168.1.49", 39847);
+    radar.start();
+
     if (globals.DISPLAY)
     {
         SetTargetFPS(60);
@@ -51,6 +56,7 @@ Simulator::~Simulator()
         delete graphics;
         CloseWindow();
     }
+    radar.stop();
 };
 
 /*******************************************************************************/
@@ -76,42 +82,44 @@ void Simulator::draw()
 
 void Simulator::updateRobotPosition(int robot_index, double x, double y)
 {
-    auto it = robots_.find(robot_index);
-    if (it != robots_.end())
+    auto it = robots_.find(robot_index); // Find the robot in the map
+    if (it != robots_.end())             // If the robot is found
     {
-        auto robot = it->second;
-        Eigen::VectorXd newPosition(4);
-        newPosition << x, y, 0., 0.; // Keep velocity at 0 for the robot's actual position
+        auto robot = it->second;        // Get the robot
+        Eigen::VectorXd newPosition(4); // Create a new position vector
+        newPosition << x, y, 0., 0.;    // Keep velocity at 0 for the robot's actual position
 
-        // Update the robot's position
-        robot->position_ = newPosition;
+        robot->position_ = newPosition; // Update the robot's position
 
-        // Update the robot's first waypoint to its current position
-        if (!robot->waypoints_.empty())
+        if (!robot->waypoints_.empty()) // Update the robot's first waypoint to its current position
+
         {
             robot->waypoints_[0] = newPosition;
         }
     }
 }
 
-void Simulator::readCoordinatesFromFile()
+void Simulator::updateRobotsFromRadar()
 {
-    std::ifstream file("robot_coordinates.txt");
-    if (file.is_open())
+    auto coordinates = radar.getLatestCoordinates();   // Get the latest coordinates from the radar
+    for (const auto &[server_id, coord] : coordinates) // Iterate through the coordinates
     {
-        std::string line;
-        while (std::getline(file, line))
-        {
-            std::istringstream iss(line);
-            int robot_index;
-            double x, y;
-            if (iss >> robot_index >> x >> y)
-            {
-                updateRobotPosition(robot_index, x, y);
-            }
-        }
-        file.close();
+        int robot_id = mapServerToRobot(server_id);          // Map the server id to a robot id
+        updateRobotPosition(robot_id, coord.x(), coord.y()); // Update the robot's position
     }
+}
+
+int Simulator::mapServerToRobot(const std::string &server_id) // Map the server id to a robot id
+{
+    static std::map<std::string, int> server_to_robot_map;
+    static int next_robot_id = 1;
+
+    if (server_to_robot_map.find(server_id) == server_to_robot_map.end()) // If the server id is not found in the map
+    {
+        server_to_robot_map[server_id] = next_robot_id++; // Assign the next robot id to the server id
+    }
+
+    return server_to_robot_map[server_id]; // Return the robot id
 }
 
 /*******************************************************************************/
@@ -123,7 +131,7 @@ void Simulator::timestep()
     if (globals.SIM_MODE != Timestep)
         return;
 
-    readCoordinatesFromFile();
+    updateRobotsFromRadar(); // Update the robots' positions from the radar
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
@@ -249,6 +257,8 @@ void Simulator::eventHandler()
     case KEY_ENTER:
         globals.SIM_MODE = (globals.SIM_MODE == Timestep) ? SimNone : Timestep;
         break;
+    case KEY_Z:
+        radar.setZeroPoint();
     default:
         break;
     }
