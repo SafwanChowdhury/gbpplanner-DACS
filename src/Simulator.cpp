@@ -19,7 +19,7 @@ Simulator::Simulator()
     : radar()
 {
     SetTraceLogLevel(LOG_ERROR);
-    radar.addServer("192.168.1.49", 39847);
+    radar.addServer("192.168.1.49", 39846);
     radar.start();
 
     if (globals.DISPLAY)
