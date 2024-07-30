@@ -80,21 +80,32 @@ void Simulator::draw()
     EndDrawing();
 };
 
-void Simulator::updateRobotPosition(int robot_index, double x, double y)
+void Simulator::updateRobotPosition(int robotIndex, double x, double y)
 {
-    auto it = robots_.find(robot_index); // Find the robot in the map
-    if (it != robots_.end())             // If the robot is found
+    auto robotIt = robots_.find(robotIndex);
+    if (robotIt == robots_.end())
     {
-        auto robot = it->second;        // Get the robot
-        Eigen::VectorXd newPosition(4); // Create a new position vector
-        newPosition << x, y, 0., 0.;    // Keep velocity at 0 for the robot's actual position
+        return; // Robot not found, exit early
+    }
 
-        robot->position_ = newPosition; // Update the robot's position
+    auto &robot = robotIt->second;
 
-        if (!robot->waypoints_.empty()) // Update the robot's first waypoint to its current position
+    // Update position, keeping velocity at 0
+    robot->position_ = Eigen::Vector4d(x, y, 0.0, 0.0);
 
+    // Update first waypoint if it exists
+    if (!robot->waypoints_.empty())
+    {
+        robot->waypoints_.front() = robot->position_;
+    }
+
+    // Set waypoint of robot 2 to the position of robot 1
+    if (robotIndex == 1)
+    {
+        auto robot2It = robots_.find(2);
+        if (robot2It != robots_.end() && !robot2It->second->waypoints_.empty())
         {
-            robot->waypoints_[0] = newPosition;
+            robot2It->second->waypoints_.front() = robot->position_;
         }
     }
 }
