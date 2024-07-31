@@ -261,6 +261,6 @@ bool Radar::performWebSocketHandshake(int sockfd, const std::string &host, int p
     }
 
     std::string response(buffer, bytes_received);
-    std::cout << "Handshake response: " << response << std::endl; // Debug print
+    std::cout << "Handshake response: " << response << std::endl;
     return response.find("HTTP/1.1 101") != std::string::npos;
 }

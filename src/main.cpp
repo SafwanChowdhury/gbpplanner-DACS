@@ -14,24 +14,29 @@
 #include <Simulator.h>
 
 Globals globals;
-int main(int argc, char *argv[]){
-    
-    srand((int)globals.SEED);                                   // Initialise random seed   
-    DArgs::DArgs dargs(argc, argv);                             // Parse config file argument --cfg <file.json>
-    if (globals.parse_global_args(dargs)) return EXIT_FAILURE;  
-    
-    Simulator* sim = new Simulator();       // Initialise the simulator
+int main(int argc, char *argv[])
+{
+
+    srand((int)globals.SEED);       // Initialise random seed
+    DArgs::DArgs dargs(argc, argv); // Parse config file argument --cfg <file.json>
+    if (globals.parse_global_args(dargs))
+        return EXIT_FAILURE;
+
+    Simulator *sim = new Simulator(); // Initialise the simulator
     globals.RUN = true;
-    while (globals.RUN){
+    while (globals.RUN)
+    {
 
-        sim->eventHandler();                // Capture keypresses or mouse events             
-        sim->createOrDeleteRobots();        
+        sim->eventHandler(); // Capture keypresses or mouse events
+        sim->createOrDeleteRobots();
+        sim->updateRobotsFromRadar(); // Update the robots' positions from the radar
         sim->timestep();
+        auto iterationValues = sim->getIterationValues();
+        sim->sendIterationValues(iterationValues);
         sim->draw();
-
     }
 
     delete sim;
 
     return 0;
-}    
+}

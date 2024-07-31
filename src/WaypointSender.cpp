@@ -89,7 +89,7 @@ void WaypointSender::sendWaypointsThread()
             sending_waypoints = false;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // 20 Hz
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 20 Hz
     }
 }
 

@@ -137,4 +137,7 @@ public:
     void updateRobotsFromRadar();
     int mapServerToRobot(const std::string &server_id);
     bool use_radar_; // Flag to switch between radar and waypoint sender
+
+    std::vector<std::pair<double, double>> getIterationValues() const;
+    void sendIterationValues(const std::vector<std::pair<double, double>> &values);
 };
