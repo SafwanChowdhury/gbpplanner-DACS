@@ -19,7 +19,10 @@ Robot::Robot(Simulator *sim,
              Color color) : FactorGraph{rid},
                             sim_(sim), rid_(rid),
                             waypoints_(waypoints),
-                            robot_radius_(size), color_(color)
+                            robot_radius_(size), color_(color),
+                            last_acceleration_(0.0),
+                            last_turn_angle_(0.0),
+                            last_next_speed_(0.0)
 {
 
     height_3D_ = robot_radius_; // Height out of plane for 3d visualisation only
@@ -105,11 +108,33 @@ void Robot::updateCurrent()
 {
     // Move plan: move plan current state by plan increment
     Eigen::VectorXd increment = ((*this)[1]->mu_ - (*this)[0]->mu_) * globals.TIMESTEP / globals.T0;
+
+    // Calculate forward acceleration and turn angle
+    Eigen::Vector2d current_velocity = (*this)[0]->mu_.segment<2>(2);
+    Eigen::Vector2d next_velocity = (*this)[1]->mu_.segment<2>(2);
+    double current_speed = current_velocity.norm();
+    last_next_speed_ = next_velocity.norm();
+
+    // Forward acceleration
+    last_acceleration_ = (last_next_speed_ - current_speed) / globals.TIMESTEP;
+
+    // Turn angle (in radians)
+    double turn_angle_rad = std::atan2(current_velocity.x() * next_velocity.y() - current_velocity.y() * next_velocity.x(),
+                                       current_velocity.dot(next_velocity));
+
+    // Convert turn angle to degrees and normalize to [-180, 180]
+    last_turn_angle_ = turn_angle_rad * 180.0 / M_PI;
+    while (last_turn_angle_ > 180.0)
+        last_turn_angle_ -= 360.0;
+    while (last_turn_angle_ < -180.0)
+        last_turn_angle_ += 360.0;
+
     // In GBP we do this by modifying the prior on the variable
     getVar(0)->change_variable_prior(getVar(0)->mu_ + increment);
+
     // Real pose update
     position_ = position_ + increment;
-};
+}
 
 /***************************************************************************************************/
 /* Change the prior of the Horizon state */
@@ -309,3 +334,11 @@ std::vector<int> Robot::getVariableTimesteps(int lookahead_horizon, int lookahea
 
     return var_list;
 };
+
+/*******************************************************************************************/
+// Get the data from the robot (acceleration, turn angle, next speed)
+/*******************************************************************************************/
+std::tuple<double, double, double> Robot::getData() const
+{
+    return std::make_tuple(last_acceleration_, last_turn_angle_, last_next_speed_);
+}

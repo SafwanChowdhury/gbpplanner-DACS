@@ -159,22 +159,24 @@ int Simulator::mapServerToRobot(const std::string &server_id) // Map the server 
     return server_to_robot_map[server_id]; // Return the robot id
 }
 
-std::vector<std::pair<double, double>> Simulator::getIterationValues() const
+std::vector<std::tuple<double, double, double>> Simulator::getIterationValues() const
 {
-    std::vector<std::pair<double, double>> values;
+    std::vector<std::tuple<double, double, double>> values;
     for (const auto &[rid, robot] : robots_)
     {
-        values.push_back(robot->getAccelerationAndTurnAngle());
+        values.push_back(robot->getData());
     }
     return values;
 }
 
-void Simulator::sendIterationValues(const std::vector<std::pair<double, double>> &values)
+void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double>> &values)
 {
     for (size_t i = 0; i < values.size(); ++i)
     {
-        std::cout << "Robot " << i << ": Acceleration = " << values[i].first
-                  << ", Turn Angle = " << values[i].second << std::endl;
+        const auto &[acceleration, turn_angle, next_speed] = values[i];
+        std::cout << "Robot " << i << ": Acceleration = " << acceleration
+                  << ", Turn Angle = " << turn_angle
+                  << ", Next Speed = " << next_speed << std::endl;
     }
 }
 
@@ -186,6 +188,8 @@ void Simulator::timestep()
 
     if (globals.SIM_MODE != Timestep)
         return;
+
+    updateRobotsFromRadar(); // Update the robots' positions from the radar
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
@@ -220,6 +224,8 @@ void Simulator::timestep()
             robot->updateCurrent();
         }
     }
+    auto iterationValues = getIterationValues();
+    sendIterationValues(iterationValues);
 
     // Increase simulation clock by one timestep
     clock_++;

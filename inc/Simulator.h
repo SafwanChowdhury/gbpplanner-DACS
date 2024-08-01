@@ -8,6 +8,7 @@
 #include <memory>
 #include <algorithm>
 #include <Utils.h>
+#include <tuple>
 #include <gbp/GBPCore.h>
 #include <Graphics.h>
 #include <gbp/Variable.h>
@@ -138,6 +139,6 @@ public:
     int mapServerToRobot(const std::string &server_id);
     bool use_radar_; // Flag to switch between radar and waypoint sender
 
-    std::vector<std::pair<double, double>> getIterationValues() const;
-    void sendIterationValues(const std::vector<std::pair<double, double>> &values);
+    std::vector<std::tuple<double, double, double>> getIterationValues() const;
+    void sendIterationValues(const std::vector<std::tuple<double, double, double>> &values);
 };

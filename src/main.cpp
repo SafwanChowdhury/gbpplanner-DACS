@@ -29,10 +29,7 @@ int main(int argc, char *argv[])
 
         sim->eventHandler(); // Capture keypresses or mouse events
         sim->createOrDeleteRobots();
-        sim->updateRobotsFromRadar(); // Update the robots' positions from the radar
         sim->timestep();
-        auto iterationValues = sim->getIterationValues();
-        sim->sendIterationValues(iterationValues);
         sim->draw();
     }
 
