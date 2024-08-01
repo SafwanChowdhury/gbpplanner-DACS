@@ -635,12 +635,20 @@ void Simulator::createOrDeleteRobots()
                 initialPosition << 0., 0., 0., 0.;
 
                 Eigen::VectorXd waypoint(4);
-                waypoint << 0., 25., 0., 0.;
+                waypoint << 150., 0., 0., 0.;
+
+                Eigen::VectorXd waypoint2(4);
+                waypoint2 << -150., -20., 0., 0.;
+
+                Eigen::VectorXd waypoint3(4);
+                waypoint3 << -500., -190., 0., 0.;
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
                 waypoints.push_back(waypoint);
                 waypoints.push_back(waypoint);
+                waypoints.push_back(waypoint2);
+                waypoints.push_back(waypoint3);
 
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot
