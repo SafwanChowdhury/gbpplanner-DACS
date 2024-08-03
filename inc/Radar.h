@@ -27,7 +27,7 @@ public:
     void start();
     void stop();
     void setZeroPoint();
-    std::map<std::string, Eigen::Vector2d> getLatestCoordinates();
+    std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> getLatestData();
 
 private:
     void connectWebSocket(ServerInfo &server);
@@ -36,6 +36,7 @@ private:
     std::string generateWebSocketKey();
     bool performWebSocketHandshake(int sockfd, const std::string &host, int port);
     void processCoordinates(const std::string &server_id, double originalX, double originalZ);
+    void processVelocity(const std::string &server_id, double velocityX, double velocityZ);
     void handleConnectionFailure(ServerInfo &server);
 
     std::vector<ServerInfo> servers;
@@ -46,4 +47,5 @@ private:
     std::vector<std::thread> server_threads;
     std::map<std::string, Eigen::Vector2d> raw_coordinates;
     const double zoom_factor = 3.44; // new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
+    std::map<std::string, Eigen::Vector2d> latest_velocities;
 };

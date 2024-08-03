@@ -64,10 +64,10 @@ void Radar::setZeroPoint()
     }
 }
 
-std::map<std::string, Eigen::Vector2d> Radar::getLatestCoordinates()
+std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> Radar::getLatestData()
 {
-    std::lock_guard<std::mutex> lock(data_mutex); // Lock the data mutex to prevent data from being modified
-    return latest_coordinates;                    // Return the latest coordinates
+    std::lock_guard<std::mutex> lock(data_mutex);                 // Lock the data mutex to prevent data from being modified
+    return std::make_pair(latest_coordinates, latest_velocities); // Return the latest coordinates and velocity
 }
 
 void Radar::connectWebSocket(ServerInfo &server)
@@ -202,6 +202,20 @@ void Radar::processTruckData(const std::string &server_id, const nlohmann::json 
                 std::cerr << "Missing coordinate data in truckPlacement for " << server_id << std::endl;
             }
         }
+        if (data["api"].contains("truckVector") && data["api"]["truckVector"].is_object())
+        {
+            auto &truckVector = data["api"]["truckVector"];
+            if (truckVector.contains("velocityX") && truckVector.contains("velocityZ"))
+            {
+                double velocityX = truckVector["velocityX"];
+                double velocityZ = truckVector["velocityZ"];
+                processVelocity(server_id, velocityX, velocityZ);
+            }
+            else
+            {
+                std::cerr << "Missing velocity data in truckPlacement for " << server_id << std::endl;
+            }
+        }
         else
         {
             std::cerr << "Invalid JSON structure received from " << server_id << std::endl;
@@ -235,6 +249,16 @@ void Radar::processCoordinates(const std::string &server_id, double originalX, d
 
     // Store the processed coordinates
     latest_coordinates[server_id] = Eigen::Vector2d(rotatedX, rotatedY);
+}
+
+void Radar::processVelocity(const std::string &server_id, double velocityX, double velocityZ)
+{
+    // Rotate 90 degrees clockwise
+    double rotatedVX = velocityZ;
+    double rotatedVY = -velocityX;
+
+    // Store the processed velocity
+    latest_velocities[server_id] = Eigen::Vector2d(rotatedVX, rotatedVY);
 }
 
 bool Radar::performWebSocketHandshake(int sockfd, const std::string &host, int port)
