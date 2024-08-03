@@ -18,7 +18,7 @@
   "T_HORIZON": 5,
   "ROBOT_RADIUS": 3.5,
   "COMMUNICATION_RADIUS": 10000000,
-  "MAX_SPEED": 100,
+  "MAX_SPEED": 60,
   "COMMS_FAILURE_RATE": 0,
   "FORMATION": "blank",
   "OBSTACLE_FILE": "../assets/imgs/ets2.png",

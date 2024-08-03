@@ -32,6 +32,7 @@ Robot::Robot(Simulator *sim,
     Eigen::VectorXd start = position_ = waypoints_[0];
     waypoints_.pop_front();
     auto goal = (waypoints_.size() > 0) ? waypoints_[0] : start;
+    has_merged_ = false;
 
     // Initialise the horzion in the direction of the goal, at a distance T_HORIZON * MAX_SPEED from the start.
     Eigen::VectorXd start2goal = goal - start;
@@ -157,7 +158,9 @@ void Robot::updateHorizon()
     if (dist_horz_to_goal.norm() < robot_radius_)
     {
         if (waypoints_.size() > 1)
+        {
             waypoints_.pop_front();
+        }
     }
 }
 
@@ -256,6 +259,41 @@ void Robot::deleteInterrobotFactors(std::shared_ptr<Robot> other_robot)
         connected_r_ids_.erase(it);
     }
 };
+
+void Robot::updatePlannedPath()
+{
+    if (waypoints_.size() < 2)
+        return;
+
+    Eigen::VectorXd start = position_;
+    Eigen::VectorXd goal = waypoints_[1];
+
+    Eigen::VectorXd direction = goal - start;
+    double distance = direction.segment<2>(0).norm();
+    Eigen::Vector2d velocity = direction.segment<2>(0).normalized() * globals.MAX_SPEED;
+
+    int num_variables = variables_.size();
+    int variable_count = 0;
+    for (auto &[key, variable] : variables_)
+    {
+        if (variable)
+        {
+            double t = static_cast<double>(variable_count) / (num_variables - 1);
+            Eigen::VectorXd interpolated(4);
+            interpolated.segment<2>(0) = start.segment<2>(0) + t * direction.segment<2>(0);
+            interpolated.segment<2>(2) = velocity;
+
+            variable->change_variable_prior(interpolated);
+            variable_count++;
+        }
+    }
+
+    // Update the first waypoint to be the current position
+    if (!waypoints_.empty())
+    {
+        waypoints_[0] = position_;
+    }
+}
 
 /***************************************************************************************************/
 // Drawing functions for the robot.

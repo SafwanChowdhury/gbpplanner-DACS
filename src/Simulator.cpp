@@ -108,19 +108,36 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y)
     // Update position, keeping velocity at 0
     robot->position_ = Eigen::Vector4d(x, y, 0.0, 0.0);
 
-    // Update first waypoint if it exists
+    if (robotIndex == 1 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
+    {
+        // Check if Robot 1 has reached its merge point (second waypoint)
+        Eigen::Vector2d mergePoint = robot->waypoints_[1].head<2>();
+        double distance = (robot->position_.head<2>() - mergePoint).norm();
+        if (distance <= 10)
+        {
+            // Robot 1 has reached the merge point
+            robot->waypoints_.pop_back(); // Remove the merge point waypoint
+            robot->has_merged_ = true;    // Set a flag to indicate that Robot 1 has merged
+        }
+    }
+
+    // Update first waypoint to current position
     if (!robot->waypoints_.empty())
     {
         robot->waypoints_.front() = robot->position_;
     }
 
-    // Set waypoint of robot 2 to the position of robot 1
-    if (robotIndex == 1)
+    // Special handling for Robot 1 after it has merged
+    if (robotIndex == 1 && robot->has_merged_)
     {
-        auto robot2It = robots_.find(2);
-        if (robot2It != robots_.end() && !robot2It->second->waypoints_.empty())
+        auto leaderIt = robots_.find(2);
+        if (leaderIt != robots_.end())
         {
-            robot2It->second->waypoints_.front() = robot->position_;
+            // Clear existing waypoints of the follower
+            robot->waypoints_.clear();
+            // Add the current position and leader's position as waypoints
+            robot->waypoints_.push_back(robot->position_);
+            robot->waypoints_.push_back(leaderIt->second->position_);
         }
     }
 }
@@ -171,6 +188,7 @@ std::vector<std::tuple<double, double, double>> Simulator::getIterationValues() 
 
 void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double>> &values)
 {
+    auto robotIt = robots_.find(1);
     for (size_t i = 0; i < values.size(); ++i)
     {
         const auto &[acceleration, turn_angle, next_speed] = values[i];
@@ -178,6 +196,17 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
                   << ", Turn Angle = " << turn_angle
                   << ", Next Speed = " << next_speed << std::endl;
     }
+    // print all waypoints for robot 1
+    // if (robotIt != robots_.end())
+    // {
+    //     auto &robot = robotIt->second;
+    //     std::cout << "Robot 1 waypoints: ";
+    //     for (const auto &waypoint : robot->waypoints_)
+    //     {
+    //         std::cout << "(" << waypoint.x() << ", " << waypoint.y() << ") ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 }
 
 /*******************************************************************************/
@@ -201,6 +230,15 @@ void Simulator::timestep()
         {
 
             robot->updateInterrobotFactors();
+        }
+    }
+
+    // Update planned paths for all robots
+    for (auto &[rid, robot] : robots_)
+    {
+        if (robot)
+        {
+            robot->updatePlannedPath();
         }
     }
 
@@ -635,7 +673,7 @@ void Simulator::createOrDeleteRobots()
                 initialPosition << 0., 0., 0., 0.;
 
                 Eigen::VectorXd waypoint(4);
-                waypoint << 150., 0., 0., 0.;
+                waypoint << 150., -2., 0., 0.;
 
                 Eigen::VectorXd waypoint2(4);
                 waypoint2 << -150., -20., 0., 0.;
@@ -645,13 +683,27 @@ void Simulator::createOrDeleteRobots()
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
-                waypoints.push_back(waypoint);
-                waypoints.push_back(waypoint);
-                waypoints.push_back(waypoint2);
-                waypoints.push_back(waypoint3);
+                // waypoints.push_back(waypoint);
+                // waypoints.push_back(waypoint);
+                // waypoints.push_back(waypoint2);
+                if (i == 1)
+                {
+                    waypoints.push_back(waypoint);
+                    waypoints.push_back(waypoint);
+                    // print waypoints queue
+                    for (int i = 0; i < waypoints.size(); i++)
+                    {
+                        print(waypoints[i]);
+                    }
+                }
+                else
+                {
+                    waypoints.push_back(waypoint3);
+                    waypoints.push_back(waypoint3);
+                }
 
                 float robot_radius = globals.ROBOT_RADIUS;
-                Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot
+                Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot (1: DARKBROWN, 2: DARKBLUE)
                 robots_to_create.push_back(std::make_shared<Robot>(this, i, waypoints, robot_radius, robot_color));
             }
         }

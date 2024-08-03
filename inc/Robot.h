@@ -40,6 +40,7 @@ public:
     std::deque<Eigen::VectorXd> waypoints_{}; // Dequeue of waypoints (whenever the robot reaches a point, it is popped off the front of the dequeue)
     float robot_radius_ = 1.;                 // Robot radius
     Color color_ = DARKGREEN;                 // Colour of robot
+    bool has_merged_ = false;
 
     int num_variables_;                  // Number of variables in the planned path (assumed to be the same for all robots)
     std::vector<int> connected_r_ids_{}; // List of robot ids that are currently connected via inter-robot factors to this robot
@@ -64,6 +65,7 @@ public:
     void updateInterrobotFactors();
     void createInterrobotFactors(std::shared_ptr<Robot> other_robot);
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
+    void updatePlannedPath();
 
     /***************************************************************************************************/
     // Drawing function
