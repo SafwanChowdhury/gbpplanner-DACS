@@ -95,7 +95,7 @@ void Simulator::draw()
     EndDrawing();
 };
 
-void Simulator::updateRobotPosition(int robotIndex, double x, double y)
+void Simulator::updateRobotPosition(int robotIndex, double x, double y, double vx, double vy)
 {
     auto robotIt = robots_.find(robotIndex);
     if (robotIt == robots_.end())
@@ -106,7 +106,7 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y)
     auto &robot = robotIt->second;
 
     // Update position, keeping velocity at 0
-    robot->position_ = Eigen::Vector4d(x, y, 0.0, 0.0);
+    robot->position_ = Eigen::Vector4d(x, y, vx, vy);
 
     if (robotIndex == 1 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
     {
@@ -146,11 +146,19 @@ void Simulator::updateRobotsFromRadar()
 {
     if (use_radar_)
     {
-        auto coordinates = radar.getLatestCoordinates();
+        auto [coordinates, velocities] = radar.getLatestData();
         for (const auto &[server_id, coord] : coordinates)
         {
             int robot_id = mapServerToRobot(server_id);
-            updateRobotPosition(robot_id, coord.x(), coord.y());
+            auto vel_it = velocities.find(server_id);
+            if (vel_it != velocities.end())
+            {
+                updateRobotPosition(robot_id, coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
+            }
+            else
+            {
+                updateRobotPosition(robot_id, coord.x(), coord.y(), 0.0, 0.0);
+            }
         }
     }
     else
@@ -158,7 +166,7 @@ void Simulator::updateRobotsFromRadar()
         auto waypoints = waypoint_sender.getLatestWaypoints();
         for (const auto &[robot_id, waypoint] : waypoints)
         {
-            updateRobotPosition(robot_id, waypoint.x(), waypoint.y());
+            updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
         }
     }
 }
@@ -176,25 +184,35 @@ int Simulator::mapServerToRobot(const std::string &server_id) // Map the server 
     return server_to_robot_map[server_id]; // Return the robot id
 }
 
-std::vector<std::tuple<double, double, double>> Simulator::getIterationValues() const
+std::vector<std::tuple<double, double, double, double, double, double, double>> Simulator::getIterationValues() const
 {
-    std::vector<std::tuple<double, double, double>> values;
+    std::vector<std::tuple<double, double, double, double, double, double, double>> values;
     for (const auto &[rid, robot] : robots_)
     {
-        values.push_back(robot->getData());
+        auto robotData = robot->getData();
+        values.push_back(std::make_tuple(
+            robot->position_(0),    // x position
+            robot->position_(1),    // y position
+            robot->position_(2),    // x velocity
+            robot->position_(3),    // y velocity
+            std::get<0>(robotData), // last_acceleration_
+            std::get<1>(robotData), // last_turn_angle_
+            std::get<2>(robotData)  // last_next_speed_
+            ));
     }
     return values;
 }
 
-void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double>> &values)
+void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double>> &values)
 {
-    auto robotIt = robots_.find(1);
     for (size_t i = 0; i < values.size(); ++i)
     {
-        const auto &[acceleration, turn_angle, next_speed] = values[i];
-        std::cout << "Robot " << i << ": Acceleration = " << acceleration
-                  << ", Turn Angle = " << turn_angle
-                  << ", Next Speed = " << next_speed << std::endl;
+        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed] = values[i];
+        std::cout << "Robot " << i << ": Position = (" << x << ", " << y << "), "
+                  << "Velocity = (" << vx << ", " << vy << "), "
+                  << "Acceleration = " << acceleration << ", "
+                  << "Turn Angle = " << turn_angle << ", "
+                  << "Next Speed = " << next_speed << std::endl;
     }
     // print all waypoints for robot 1
     // if (robotIt != robots_.end())

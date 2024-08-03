@@ -104,7 +104,7 @@ public:
     /*******************************************************************************/
     // Update the position of the robot in the simulator's robot_positions_ map.
     /*******************************************************************************/
-    void updateRobotPosition(int robot_index, double x, double y);
+    void updateRobotPosition(int robotIndex, double x, double y, double vx, double vy);
 
     /*******************************************************************************/
     // Deletes the robot from the simulator's robots_, as well as any variable/factors associated.
@@ -139,6 +139,6 @@ public:
     int mapServerToRobot(const std::string &server_id);
     bool use_radar_; // Flag to switch between radar and waypoint sender
 
-    std::vector<std::tuple<double, double, double>> getIterationValues() const;
-    void sendIterationValues(const std::vector<std::tuple<double, double, double>> &values);
+    std::vector<std::tuple<double, double, double, double, double, double, double>> getIterationValues() const;
+    void sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double>> &values);
 };

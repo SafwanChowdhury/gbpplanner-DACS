@@ -13,7 +13,7 @@ void WaypointSender::loadWaypoints()
     loadWaypointsFromFile(TRUCK2_WAYPOINTS_FILE, truck2_waypoints);
 }
 
-void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::Vector3d> &waypoints)
+void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::VectorXd> &waypoints)
 {
     std::ifstream file(filename);
     if (!file.is_open())
@@ -28,10 +28,16 @@ void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vec
     {
         std::istringstream iss(line);
         int truck_id;
-        double x, y;
-        if (iss >> truck_id >> x >> y)
+        double x, z, vx, vz;
+        if (iss >> truck_id >> x >> z >> vx >> vz)
         {
-            waypoints.emplace_back(x, y, 0);
+            Eigen::VectorXd waypoint(5);
+            waypoint << truck_id, x, z, vx, vz;
+            waypoints.push_back(waypoint);
+        }
+        else
+        {
+            std::cerr << "Error reading line: " << line << std::endl;
         }
     }
 
@@ -59,7 +65,7 @@ void WaypointSender::stopSendingWaypoints()
     }
 }
 
-std::map<int, Eigen::Vector2d> WaypointSender::getLatestWaypoints()
+std::map<int, Eigen::Vector4d> WaypointSender::getLatestWaypoints()
 {
     std::lock_guard<std::mutex> lock(waypoints_mutex);
     return latest_waypoints;
@@ -93,8 +99,8 @@ void WaypointSender::sendWaypointsThread()
     }
 }
 
-void WaypointSender::updateLatestWaypoint(int truck_id, const Eigen::Vector3d &waypoint)
+void WaypointSender::updateLatestWaypoint(int truck_id, const Eigen::VectorXd &waypoint)
 {
     std::lock_guard<std::mutex> lock(waypoints_mutex);
-    latest_waypoints[truck_id] = Eigen::Vector2d(waypoint.x(), waypoint.y());
+    latest_waypoints[truck_id] = Eigen::Vector4d(waypoint[1], waypoint[2], waypoint[3], waypoint[4]);
 }

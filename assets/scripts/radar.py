@@ -23,8 +23,8 @@ truck_urls = [
     # Add more URLs here as needed
 ]
 
-# Dictionary to store the last known coordinates for each robot
-last_known_coordinates = {}
+# Dictionary to store the last known coordinates and velocities for each robot
+last_known_data = {}
 
 # Function to start recording waypoints
 def start_recording():
@@ -49,13 +49,12 @@ def save_recorded_waypoints():
         os.chdir("../../build")  # Change to the correct directory
         with open(filename, "a") as f:
             for waypoint in recorded_waypoints:
-                f.write(f"{waypoint['robot']} {waypoint['x']} {waypoint['y']}\n")
+                f.write(f"{waypoint['robot']} {waypoint['x']} {waypoint['y']} {waypoint['vx']} {waypoint['vz']}\n")
         print(f"Saved {len(recorded_waypoints)} waypoints to {filename}")
     except Exception as e:
         print(f"Error saving waypoints: {e}")
     finally:
         os.chdir(original_dir)  # Change back to the original directory
-
 
 # Function to fetch data from the localhost API
 def fetch_data(url):
@@ -63,7 +62,8 @@ def fetch_data(url):
         response = requests.get(url, timeout=0.5)
         data = response.json()
         truck_placement = data['api']['truckPlacement']
-        return truck_placement
+        truck_vector = data['api']['truckVector']
+        return {**truck_placement, **truck_vector}
     except Exception as e:
         print(f"Error fetching data from {url}: {e}")
         return None
@@ -76,10 +76,7 @@ def update_data():
         data = fetch_data(url)
         if data:
             truck_data.append(data)
-            last_known_coordinates[i] = {
-                'coordinateX': data['coordinateX'],
-                'coordinateZ': data['coordinateZ']
-            }
+            last_known_data[i] = data
             
             # Record waypoint if recording is active
             if is_recording and zero_point_set:
@@ -89,14 +86,18 @@ def update_data():
                 recorded_waypoints.append({
                     'robot': i+1,
                     'x': round(rotated_x, 2),
-                    'y': round(rotated_y, 2)
+                    'y': round(rotated_y, 2),
+                    'vx': round(data['velocityX'], 2),
+                    'vz': round(data['velocityZ'], 2)
                 })
-        elif i in last_known_coordinates:
-            truck_data.append(last_known_coordinates[i])
+        elif i in last_known_data:
+            truck_data.append(last_known_data[i])
         else:
             truck_data.append({
                 'coordinateX': zero_point['coordinateX'],
-                'coordinateZ': zero_point['coordinateZ']
+                'coordinateZ': zero_point['coordinateZ'],
+                'velocityX': 0,
+                'velocityZ': 0
             })
     
     if truck_data:
@@ -109,7 +110,6 @@ def update_data():
 
     root.after(update_interval, update_data)
 
-
 # Function to update the UI elements
 def update_ui(truck_data):
     for i, data in enumerate(truck_data):
@@ -121,14 +121,8 @@ def update_ui(truck_data):
 
         truck_labels[i]['coordinateX'].set(f"Robot {i+1} Coordinate X: {relative_coordinateX}")
         truck_labels[i]['coordinateZ'].set(f"Robot {i+1} Coordinate Z: {relative_coordinateZ}")
-        if 'rotationX' in data:
-            truck_labels[i]['rotationX'].set(f"Robot {i+1} Rotation X: {round(math.degrees(data['rotationX']), 2)}°")
-            truck_labels[i]['rotationY'].set(f"Robot {i+1} Rotation Y: {round(math.degrees(data['rotationY']), 2)}°")
-            truck_labels[i]['rotationZ'].set(f"Robot {i+1} Rotation Z: {round(math.degrees(data['rotationZ']), 2)}°")
-        else:
-            truck_labels[i]['rotationX'].set(f"Robot {i+1} Rotation X: N/A")
-            truck_labels[i]['rotationY'].set(f"Robot {i+1} Rotation Y: N/A")
-            truck_labels[i]['rotationZ'].set(f"Robot {i+1} Rotation Z: N/A")
+        truck_labels[i]['velocityX'].set(f"Robot {i+1} Velocity X: {round(data['velocityX'], 2)}")
+        truck_labels[i]['velocityZ'].set(f"Robot {i+1} Velocity Z: {round(data['velocityZ'], 2)}")
 
 # Function to update the radar view
 def update_radar(truck_data):
@@ -146,6 +140,12 @@ def update_radar(truck_data):
 
         color = colors[i % len(colors)]
         radar_canvas.create_oval(250+x_rotated-5, 250+z_rotated-5, 250+x_rotated+5, 250+z_rotated+5, fill=color)
+        
+        # Draw velocity vector
+        vx = data['velocityX'] * zoom_level * 10  # Scale velocity for visibility
+        vz = data['velocityZ'] * zoom_level * 10
+        vx_rotated, vz_rotated = rotate_90_degrees_clockwise(vx, vz)
+        radar_canvas.create_line(250+x_rotated, 250+z_rotated, 250+x_rotated+vx_rotated, 250+z_rotated+vz_rotated, fill=color, arrow=tk.LAST)
 
 # Function to reset the zero point coordinates relative to the first robot
 def reset_zero_point():
@@ -153,7 +153,7 @@ def reset_zero_point():
     data = fetch_data(truck_urls[0])
     if data:
         zero_point['coordinateX'] = data['coordinateX']
-        zero_point['coordinateY'] = data['coordinateY']
+        zero_point['coordinateY'] = data.get('coordinateY', 0)  # Use 0 if coordinateY is not available
         zero_point['coordinateZ'] = data['coordinateZ']
 
         zero_point_label.set(f"Zero Point Set to: ({round(zero_point['coordinateX'], 2)}, {round(zero_point['coordinateY'], 2)}, {round(zero_point['coordinateZ'], 2)})")
@@ -163,25 +163,23 @@ def reset_zero_point():
 def rotate_90_degrees_clockwise(x, y):
     return y, -x
 
-
 def save_robot_coordinates(truck_data):
     try:
         os.chdir("../../build")  # Change to the correct directory
         with open("robot_coordinates.txt", "w") as f:
             for i, data in enumerate(truck_data):
-                # Calculate coordinates using the same method as drawMap.py
                 x = (data['coordinateX'] - zero_point['coordinateX']) * 10 / zoom_factor
                 y = (data['coordinateZ'] - zero_point['coordinateZ']) * 10 / zoom_factor
                 
-                # Rotate coordinates 90 degrees clockwise
                 rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
                 
-                # Round the coordinates to 2 decimal places
                 rotated_x = round(rotated_x, 2)
                 rotated_y = round(rotated_y, 2)
+                vx = round(data['velocityX'], 2)
+                vz = round(data['velocityZ'], 2)
                 
-                f.write(f"{i+1} {rotated_x} {rotated_y}\n")
-        print(f"Saved scaled and rotated coordinates for {len(truck_data)} robots")
+                f.write(f"{i+1} {rotated_x} {rotated_y} {vx} {vz}\n")
+        print(f"Saved scaled and rotated coordinates and velocities for {len(truck_data)} robots")
     except Exception as e:
         print(f"Error saving coordinates: {e}")
     finally:
@@ -200,7 +198,7 @@ def zoom_out():
 
 # Setting up the Tkinter window
 root = tk.Tk()
-root.title("Robot Placement and Rotation Data")
+root.title("Robot Placement, Rotation, and Velocity Data")
 
 # Store the original directory
 original_dir = os.getcwd()
@@ -213,9 +211,8 @@ def create_truck_labels(index):
     labels = {
         'coordinateX': tk.StringVar(),
         'coordinateZ': tk.StringVar(),
-        'rotationX': tk.StringVar(),
-        'rotationY': tk.StringVar(),
-        'rotationZ': tk.StringVar()
+        'velocityX': tk.StringVar(),
+        'velocityZ': tk.StringVar()
     }
     for key in labels:
         ttk.Label(root, textvariable=labels[key]).pack()
@@ -244,6 +241,7 @@ start_button.pack()
 
 stop_button = ttk.Button(root, text="Stop Recording", command=stop_recording)
 stop_button.pack()
+
 # Initial call to update the data
 update_data()
 
