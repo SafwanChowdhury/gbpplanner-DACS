@@ -170,22 +170,33 @@ void Robot::updateHorizon()
 /***************************************************************************************************/
 void Robot::updateInterrobotFactors()
 {
+    printf("debug5.1\n");
+    printf("robot id: %d\n", rid_);
     // Search through currently connected rids. If any are not in neighbours, delete interrobot factors.
     for (auto it = connected_r_ids_.begin(); it != connected_r_ids_.end();)
     {
+        printf("debug5.2\n");
+        printf("connected robot id: %d\n", *it);
         if (std::find(neighbours_.begin(), neighbours_.end(), *it) == neighbours_.end())
         {
+            printf("debug5.3\n");
             auto robot_it = sim_->robots_.find(*it);
             if (robot_it != sim_->robots_.end())
             {
+                printf("debug5.4\n");
                 deleteInterrobotFactors(robot_it->second);
+                printf("debug5.5\n");
             }
             it = connected_r_ids_.erase(it);
+            printf("debug5.6\n");
         }
         else
         {
+            printf("debug5.7\n");
             ++it;
+            printf("debug5.8\n");
         }
+        printf("debug5.9\n");
     }
 
     // Search through neighbours. If any are not in currently connected rids, create interrobot factors.

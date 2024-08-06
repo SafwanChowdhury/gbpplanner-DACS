@@ -235,22 +235,24 @@ void Simulator::timestep()
 
     if (globals.SIM_MODE != Timestep)
         return;
-
+    printf("debug1\n");
     updateRobotsFromRadar(); // Update the robots' positions from the radar
-
+    printf("debug2\n");
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
+    printf("debug3\n");
 
     for (auto &[r_id, robot] : robots_)
     {
-
+        printf("debug4\n");
         if (robot) // Check if the robot pointer is valid
         {
-
+            printf("debug5\n");
             robot->updateInterrobotFactors();
+            printf("debug6\n");
         }
     }
-
+    printf("debug7\n");
     // Update planned paths for all robots
     for (auto &[rid, robot] : robots_)
     {
@@ -298,6 +300,7 @@ void Simulator::calculateRobotNeighbours(std::map<int, std::shared_ptr<Robot>> &
     for (auto [rid, robot] : robots)
     {
         robot_positions_.at(rid) = std::vector<double>{robot->position_(0), robot->position_(1)};
+        printf("Robot %d is at position (%f, %f)\n", rid, robot->position_(0), robot->position_(1));
     }
     treeOfRobots_->index->buildIndex();
 
@@ -306,15 +309,25 @@ void Simulator::calculateRobotNeighbours(std::map<int, std::shared_ptr<Robot>> &
         // Find nearest neighbors in radius
         robot->neighbours_.clear();
         std::vector<double> query_pt = std::vector<double>{robots[rid]->position_(0), robots[rid]->position_(1)};
+        if (rid == 2)
+        {
+            std::cout << "Robot 2 is at position (" << query_pt[0] << ", " << query_pt[1] << ")" << std::endl;
+        }
         const float search_radius = pow(globals.COMMUNICATION_RADIUS, 2.);
+        printf("search_radius: %f\n", search_radius);
         std::vector<nanoflann::ResultItem<size_t, double>> matches;
         nanoflann::SearchParameters params;
         params.sorted = true;
         const size_t nMatches = treeOfRobots_->index->radiusSearch(&query_pt[0], search_radius, matches, params);
+        if (rid == 2)
+        {
+            std::cout << "Robot 2 has " << nMatches << " neighbours" << std::endl;
+        }
         for (size_t i = 0; i < nMatches; i++)
         {
             auto it = robots_.begin();
             std::advance(it, matches[i].first);
+            printf("Robot %d is a neighbour of Robot %d\n", it->first, rid);
             if (it->first == rid)
                 continue;
             robot->neighbours_.push_back(it->first);
@@ -683,12 +696,13 @@ void Simulator::createOrDeleteRobots()
     else if (globals.FORMATION == "blank")
     {
         new_robots_needed_ = false; // We only need to create the robots once
-        if (robots_.empty() && globals.NUM_ROBOTS == 2)
+        if (robots_.empty() && globals.NUM_ROBOTS)
         {
-            for (int i = 1; i <= 2; ++i)
+            for (int i = 1; i <= globals.NUM_ROBOTS; ++i)
             {
                 Eigen::VectorXd initialPosition(4);
-                initialPosition << 0., 0., 0., 0.;
+                float x = (i == 1) ? -100. : 100.;
+                initialPosition << x, x, 0., 0.;
 
                 Eigen::VectorXd waypoint(4);
                 waypoint << 150., -2., 0., 0.;
