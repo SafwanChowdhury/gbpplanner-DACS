@@ -27,7 +27,8 @@ Simulator::Simulator()
     else
     {
         waypoint_sender.loadWaypoints();
-        waypoint_sender.setRobot2FailurePoint(waypoint_sender.truck2_waypoints.size() / 2);
+        waypoint_sender.setRobot2FailurePoint(waypoint_sender.truck2_waypoints.size() / 4);
+        // waypoint_sender.setRobot2FailurePoint(-1);
         waypoint_sender.startSendingWaypoints();
     }
 
@@ -703,7 +704,7 @@ void Simulator::createOrDeleteRobots()
                 waypoint2 << -150., -20., 0., 0.;
 
                 Eigen::VectorXd waypoint3(4);
-                waypoint3 << -250., -40., 0., 0.;
+                waypoint3 << -250., -50., 0., 0.;
 
                 Eigen::VectorXd waypoint4(4);
                 waypoint4 << -500., -190., 0., 0.;
