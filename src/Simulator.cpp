@@ -703,7 +703,10 @@ void Simulator::createOrDeleteRobots()
                 waypoint2 << -150., -20., 0., 0.;
 
                 Eigen::VectorXd waypoint3(4);
-                waypoint3 << -500., -190., 0., 0.;
+                waypoint3 << -250., -40., 0., 0.;
+
+                Eigen::VectorXd waypoint4(4);
+                waypoint4 << -500., -190., 0., 0.;
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
@@ -714,16 +717,12 @@ void Simulator::createOrDeleteRobots()
                 {
                     waypoints.push_back(waypoint);
                     waypoints.push_back(waypoint);
-                    // print waypoints queue
-                    for (int i = 0; i < waypoints.size(); i++)
-                    {
-                        print(waypoints[i]);
-                    }
                 }
                 else
                 {
                     waypoints.push_back(waypoint3);
                     waypoints.push_back(waypoint3);
+                    waypoints.push_back(waypoint4);
                 }
 
                 float robot_radius = globals.ROBOT_RADIUS;
