@@ -27,6 +27,7 @@ Simulator::Simulator()
     else
     {
         waypoint_sender.loadWaypoints();
+        waypoint_sender.setRobot2FailurePoint(waypoint_sender.truck2_waypoints.size() / 2);
         waypoint_sender.startSendingWaypoints();
     }
 
@@ -166,6 +167,11 @@ void Simulator::updateRobotsFromRadar()
         auto waypoints = waypoint_sender.getLatestWaypoints();
         for (const auto &[robot_id, waypoint] : waypoints)
         {
+            if (robot_id == 2 && waypoint_sender.robot2_failed == true)
+            {
+                printf("Robot 2 has failed at waypoint %d\n", waypoint_sender.robot2_failure_point);
+                continue; // Skip after the failure point for Robot 2
+            }
             updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
         }
     }

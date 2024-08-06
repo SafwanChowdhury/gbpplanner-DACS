@@ -1,6 +1,6 @@
 #include "WaypointSender.h"
 
-WaypointSender::WaypointSender() : sending_waypoints(false) {}
+WaypointSender::WaypointSender() : sending_waypoints(false), robot2_failure_point(-1), robot2_failed(false) {}
 
 WaypointSender::~WaypointSender()
 {
@@ -71,10 +71,15 @@ std::map<int, Eigen::Vector4d> WaypointSender::getLatestWaypoints()
     return latest_waypoints;
 }
 
+void WaypointSender::setRobot2FailurePoint(int failure_point)
+{
+    robot2_failure_point = failure_point;
+}
+
 void WaypointSender::sendWaypointsThread()
 {
     size_t truck1_index = 0, truck2_index = 0;
-
+    robot2_failed = false;
     while (sending_waypoints)
     {
         if (truck1_index < truck1_waypoints.size())
@@ -83,15 +88,22 @@ void WaypointSender::sendWaypointsThread()
             truck1_index++;
         }
 
-        if (truck2_index < truck2_waypoints.size())
+        if (truck2_index < truck2_waypoints.size() && !robot2_failed)
         {
             updateLatestWaypoint(2, truck2_waypoints[truck2_index]);
             truck2_index++;
+
+            // Check if we've reached the failure point for robot 2
+            if (robot2_failure_point >= 0 && truck2_index >= static_cast<size_t>(robot2_failure_point))
+            {
+                std::cout << "Simulating communication failure for robot 2 at waypoint " << truck2_index << std::endl;
+                robot2_failed = true;
+            }
         }
 
-        if (truck1_index >= truck1_waypoints.size() && truck2_index >= truck2_waypoints.size())
+        if (truck1_index >= truck1_waypoints.size() && (truck2_index >= truck2_waypoints.size() || robot2_failed))
         {
-            std::cout << "All waypoints sent. Stopping." << std::endl;
+            std::cout << "All waypoints sent or robot 2 failed. Stopping." << std::endl;
             sending_waypoints = false;
         }
 
