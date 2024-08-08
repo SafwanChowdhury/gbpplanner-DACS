@@ -16,10 +16,10 @@
 // Raylib setup
 /*******************************************************************************/
 Simulator::Simulator()
-    : radar(), waypoint_sender(), use_radar_(false)
+    : radar(), waypoint_sender()
 {
     SetTraceLogLevel(LOG_ERROR);
-    if (use_radar_)
+    if (globals.USE_RADAR)
     {
         radar.addServer("192.168.1.49", 39846);
         radar.start();
@@ -66,7 +66,7 @@ Simulator::~Simulator()
         delete graphics;
         CloseWindow();
     }
-    if (use_radar_)
+    if (globals.USE_RADAR)
     {
         radar.stop();
     }
@@ -146,7 +146,7 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
 
 void Simulator::updateRobotsFromRadar()
 {
-    if (use_radar_)
+    if (globals.USE_RADAR)
     {
         auto [coordinates, velocities] = radar.getLatestData();
         for (const auto &[server_id, coord] : coordinates)
@@ -524,106 +524,9 @@ void Simulator::createOrDeleteRobots()
     std::vector<std::shared_ptr<Robot>> robots_to_create{};
     std::vector<std::shared_ptr<Robot>> robots_to_delete{};
     Eigen::VectorXd starting, turning, ending; // Waypoints : [x,y,xdot,ydot].
-
-    if (globals.FORMATION == "circle")
-    {
-        // Robots must travel to opposite sides of circle
-        new_robots_needed_ = false;
-        float min_circumference_spacing = 5. * globals.ROBOT_RADIUS;
-        double min_radius = 0.25 * globals.WORLD_SZ;
-        Eigen::VectorXd centre{{0., 0., 0., 0.}};
-        for (int i = 0; i < globals.NUM_ROBOTS; i++)
-        {
-            // Select radius of large circle to be at least min_radius,
-            // Also ensures that robots in the circle are at least min_circumference_spacing away from each other
-            float radius_circle = (globals.NUM_ROBOTS == 1) ? min_radius : std::max(min_radius, sqrt(min_circumference_spacing / (2. - 2. * cos(2. * PI / (double)globals.NUM_ROBOTS))));
-            Eigen::VectorXd offset_from_centre = Eigen::VectorXd{{radius_circle * cos(2. * PI * i / (float)globals.NUM_ROBOTS)},
-                                                                 {radius_circle * sin(2. * PI * i / (float)globals.NUM_ROBOTS)},
-                                                                 {0.},
-                                                                 {0.}};
-            starting = centre + offset_from_centre;
-            ending = centre - offset_from_centre;
-            std::deque<Eigen::VectorXd> waypoints{starting, ending};
-
-            // Define robot radius and colour here.
-            float robot_radius = globals.ROBOT_RADIUS;
-            Color robot_color = ColorFromHSV(i * 360. / (float)globals.NUM_ROBOTS, 1., 0.75);
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
-        }
-    }
-    else if (globals.FORMATION == "junction")
-    {
-        // Robots in a cross-roads style junction. There is only one-way traffic, and no turning.
-        new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
-        if (clock_ % 20 == 0)
-        { // Arbitrary condition on the simulation time to create new robots
-            int n_roads = 2;
-            int road = random_int(0, n_roads - 1);
-            Eigen::Matrix4d rot;
-            rot.setZero();
-            rot.topLeftCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
-            rot.bottomRightCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
-
-            int n_lanes = 2;
-            int lane = random_int(0, n_lanes - 1);
-            double lane_width = 4. * globals.ROBOT_RADIUS;
-            double lane_v_offset = (0.5 * (1 - n_lanes) + lane) * lane_width;
-            starting = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., lane_v_offset, globals.MAX_SPEED, 0.}};
-            ending = rot * Eigen::VectorXd{{(double)globals.WORLD_SZ, lane_v_offset, 0., 0.}};
-            std::deque<Eigen::VectorXd> waypoints{starting, ending};
-            float robot_radius = globals.ROBOT_RADIUS;
-            Color robot_color = DARKGREEN;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
-        }
-
-        // Delete robots if out of bounds
-        for (auto [rid, robot] : robots_)
-        {
-            if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
-            {
-                robots_to_delete.push_back(robot);
-            }
-        }
-    }
-    else if (globals.FORMATION == "junction_twoway")
-    {
-        // Robots in a two-way junction, turning LEFT (RED), RIGHT (BLUE) or STRAIGHT (GREEN)
-        new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
-        if (clock_ % 20 == 0)
-        { // Arbitrary condition on the simulation time to create new robots
-            int n_roads = 4;
-            int road = random_int(0, n_roads - 1);
-            // We will define one road (the one going left) and then we can rotate the positions for other roads.
-            Eigen::Matrix4d rot;
-            rot.setZero();
-            rot.topLeftCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
-            rot.bottomRightCorner(2, 2) << cos(PI / 2. * road), -sin(PI / 2. * road), sin(PI / 2. * road), cos(PI / 2. * road);
-
-            int n_lanes = 2;
-            int lane = random_int(0, n_lanes - 1);
-            int turn = random_int(0, 2);
-            double lane_width = 4. * globals.ROBOT_RADIUS;
-            double lane_v_offset = (0.5 * (1 - 2. * n_lanes) + lane) * lane_width;
-            double lane_h_offset = (1 - turn) * (0.5 + lane - n_lanes) * lane_width;
-            starting = rot * Eigen::VectorXd{{-globals.WORLD_SZ / 2., lane_v_offset, globals.MAX_SPEED, 0.}};
-            turning = rot * Eigen::VectorXd{{lane_h_offset, lane_v_offset, (turn % 2) * globals.MAX_SPEED, (turn - 1) * globals.MAX_SPEED}};
-            ending = rot * Eigen::VectorXd{{lane_h_offset + (turn % 2) * globals.WORLD_SZ * 1., lane_v_offset + (turn - 1) * globals.WORLD_SZ * 1., 0., 0.}};
-            std::deque<Eigen::VectorXd> waypoints{starting, turning, ending};
-            float robot_radius = globals.ROBOT_RADIUS;
-            Color robot_color = ColorFromHSV(turn * 120., 1., 0.75);
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color));
-        }
-
-        // Delete robots if out of bounds
-        for (auto [rid, robot] : robots_)
-        {
-            if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
-            {
-                robots_to_delete.push_back(robot);
-            }
-        }
-    }
-    else if (globals.FORMATION == "highway-pair")
+    int num_robots = globals.USE_RADAR ? radar.getServerCount() : globals.NUM_ROBOTS;
+    printf("`num_robots` is %d\n", num_robots);
+    if (globals.FORMATION == "highway-pair")
     {
         auto highwayWaypoints = calculateHighwayWaypoints();
         // Add this counter at the beginning of your code
@@ -687,12 +590,12 @@ void Simulator::createOrDeleteRobots()
             }
         }
     }
-    else if (globals.FORMATION == "blank")
+    else if (globals.FORMATION == "ets2")
     {
         new_robots_needed_ = false; // We only need to create the robots once
-        if (robots_.empty() && globals.NUM_ROBOTS == 2)
+        if (robots_.empty())
         {
-            for (int i = 1; i <= 2; ++i)
+            for (int i = 1; i <= num_robots; ++i)
             {
                 Eigen::VectorXd initialPosition(4);
                 initialPosition << 0., 0., 0., 0.;
@@ -711,9 +614,6 @@ void Simulator::createOrDeleteRobots()
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
-                // waypoints.push_back(waypoint);
-                // waypoints.push_back(waypoint);
-                // waypoints.push_back(waypoint2);
                 if (i == 1)
                 {
                     waypoints.push_back(waypoint);

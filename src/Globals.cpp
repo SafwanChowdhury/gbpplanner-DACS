@@ -9,15 +9,17 @@
 /*****************************************************************/
 // Simply reads the appropriate sections from the config.json
 /*****************************************************************/
-void Globals::parse_global_args(std::ifstream& config_file){
-    
+void Globals::parse_global_args(std::ifstream &config_file)
+{
+
     // Basic parameters
     nlohmann::json j;
     config_file >> j;
     ASSETS_DIR = j["ASSETS_DIR"];
 
     // Display parameters
-    DISPLAY = static_cast<bool>((int)j["DISPLAY"]);;
+    DISPLAY = static_cast<bool>((int)j["DISPLAY"]);
+    ;
     WORLD_SZ = j["WORLD_SZ"];
     SCREEN_SZ = j["SCREEN_SZ"];
     DRAW_INTERROBOT = static_cast<bool>((int)j["DRAW_INTERROBOT"]);
@@ -43,9 +45,10 @@ void Globals::parse_global_args(std::ifstream& config_file){
     SIGMA_FACTOR_OBSTACLE = j["SIGMA_FACTOR_OBSTACLE"];
     NUM_ITERS = j["NUM_ITERS"];
 
+    USE_RADAR = j["USE_RADAR"];
 }
 
-Globals::Globals(){};
+Globals::Globals() {};
 
 /*****************************************************************/
 // Allows for parsing of an external config file
@@ -54,7 +57,7 @@ int Globals::parse_global_args(DArgs::DArgs &dargs)
 {
     // Argument parser
     this->CONFIG_FILE = dargs("--cfg", "config_file", this->CONFIG_FILE);
-    
+
     if (!dargs.check())
     {
         dargs.print_help();
@@ -78,10 +81,10 @@ void Globals::post_parsing()
     // Cap max speed, since it should be <= ROBOT_RADIUS/2.f / TIMESTEP:
     // In one timestep a robot should not move more than half of its radius
     // (since we plan for discrete timesteps)
-    if (MAX_SPEED > ROBOT_RADIUS/2.f/TIMESTEP){
-        MAX_SPEED = ROBOT_RADIUS/2.f/TIMESTEP;
+    if (MAX_SPEED > ROBOT_RADIUS / 2.f / TIMESTEP)
+    {
+        MAX_SPEED = ROBOT_RADIUS / 2.f / TIMESTEP;
         print("Capping MAX_SPEED parameter at ", MAX_SPEED);
     }
-    T0 = ROBOT_RADIUS/2.f / MAX_SPEED; // Time between current state and next state of planned path
-
+    T0 = ROBOT_RADIUS / 2.f / MAX_SPEED; // Time between current state and next state of planned path
 }

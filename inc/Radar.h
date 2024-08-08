@@ -24,6 +24,7 @@ public:
     ~Radar();
 
     void addServer(const std::string &server_ip, int server_port);
+    size_t getServerCount() const;
     void start();
     void stop();
     void setZeroPoint();
