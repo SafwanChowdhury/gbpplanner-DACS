@@ -17,16 +17,17 @@
   "NUM_ROBOTS": 2,
   "T_HORIZON": 5,
   "ROBOT_RADIUS": 3.5,
-  "COMMUNICATION_RADIUS": 10000000,
+  "COMMUNICATION_RADIUS": 10,
   "MAX_SPEED": 60,
   "COMMS_FAILURE_RATE": 0,
-  "FORMATION": "blank",
+  "FORMATION": "ets2",
   "OBSTACLE_FILE": "../assets/imgs/ets2.png",
 
   "###": "GBP parameters",
   "SIGMA_FACTOR_DYNAMICS": 0.1,
   "SIGMA_FACTOR_INTERROBOT": 0.01,
   "SIGMA_FACTOR_OBSTACLE": 0.01,
-  "NUM_ITERS": 10
+  "NUM_ITERS": 10,
+  "USE_RADAR": true
 
 }

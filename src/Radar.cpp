@@ -20,6 +20,11 @@ void Radar::addServer(const std::string &server_ip, int server_port)
     servers.push_back({server_ip, server_port, -1});
 }
 
+size_t Radar::getServerCount() const
+{
+    return servers.size();
+}
+
 void Radar::start()
 {
     running = true;
