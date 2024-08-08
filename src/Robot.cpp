@@ -180,7 +180,10 @@ void Robot::updateInterrobotFactors()
             {
                 deleteInterrobotFactors(robot_it->second);
             }
-            it = connected_r_ids_.erase(it);
+            if (connected_r_ids_.size() > 0)
+            {
+                it = connected_r_ids_.erase(it);
+            }
         }
         else
         {

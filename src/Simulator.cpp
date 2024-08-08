@@ -27,6 +27,8 @@ Simulator::Simulator()
     else
     {
         waypoint_sender.loadWaypoints();
+        waypoint_sender.setRobot2FailurePoint(waypoint_sender.truck2_waypoints.size() / 4);
+        // waypoint_sender.setRobot2FailurePoint(-1);
         waypoint_sender.startSendingWaypoints();
     }
 
@@ -166,6 +168,11 @@ void Simulator::updateRobotsFromRadar()
         auto waypoints = waypoint_sender.getLatestWaypoints();
         for (const auto &[robot_id, waypoint] : waypoints)
         {
+            if (robot_id == 2 && waypoint_sender.robot2_failed == true)
+            {
+                printf("Robot 2 has failed at waypoint %d\n", waypoint_sender.robot2_failure_point);
+                continue; // Skip after the failure point for Robot 2
+            }
             updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
         }
     }
@@ -600,7 +607,10 @@ void Simulator::createOrDeleteRobots()
                 waypoint2 << -150., -20., 0., 0.;
 
                 Eigen::VectorXd waypoint3(4);
-                waypoint3 << -500., -190., 0., 0.;
+                waypoint3 << -250., -50., 0., 0.;
+
+                Eigen::VectorXd waypoint4(4);
+                waypoint4 << -500., -190., 0., 0.;
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
@@ -613,6 +623,7 @@ void Simulator::createOrDeleteRobots()
                 {
                     waypoints.push_back(waypoint3);
                     waypoints.push_back(waypoint3);
+                    waypoints.push_back(waypoint4);
                 }
 
                 float robot_radius = globals.ROBOT_RADIUS;
