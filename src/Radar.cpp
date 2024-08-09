@@ -8,7 +8,7 @@
 #include <random>
 #include "json.hpp"
 
-Radar::Radar() : zero_point(0, 0), running(false) {}
+Radar::Radar() : zero_point(-42698, -19546), running(false) {}
 
 Radar::~Radar()
 {

@@ -1,12 +1,12 @@
 This file contains important coordinates for the testing in the simualtor. The command for truck teleportation is included.  
 
-Truck 2 Spawn:  goto -43190;-2;-19315 ->  ctrl+F9
+Truck 2 Road Spawn:  goto -43190;-2;-19315 ->  ctrl+F9
 
-Truck 2 Fuel Stop: goto -44058;—3;-20127
+Truck 2 Start: goto -43968;—3;-20097
 
-Truck 1 Spawn: -42103 -12 -17655
+Truck 1 Start: -42103 -12 -17655
 
-Truck 1 Road: -42698, 7, -18912
+Truck 1 Road Spawn: -42698, 7, -18912
 
 Truck 1 set up laptop 
 - steering offset -0.01

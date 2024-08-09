@@ -21,6 +21,7 @@ Simulator::Simulator()
     SetTraceLogLevel(LOG_ERROR);
     if (globals.USE_RADAR)
     {
+        radar.addServer("192.168.1.150", 39846);
         radar.addServer("192.168.1.49", 39846);
         radar.start();
     }
@@ -170,8 +171,7 @@ void Simulator::updateRobotsFromRadar()
         {
             if (robot_id == 2 && waypoint_sender.robot2_failed == true)
             {
-                printf("Robot 2 has failed at waypoint %d\n", waypoint_sender.robot2_failure_point);
-                continue; // Skip after the failure point for Robot 2
+                continue;
             }
             updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
         }
@@ -525,7 +525,6 @@ void Simulator::createOrDeleteRobots()
     std::vector<std::shared_ptr<Robot>> robots_to_delete{};
     Eigen::VectorXd starting, turning, ending; // Waypoints : [x,y,xdot,ydot].
     int num_robots = globals.USE_RADAR ? radar.getServerCount() : globals.NUM_ROBOTS;
-    printf("`num_robots` is %d\n", num_robots);
     if (globals.FORMATION == "highway-pair")
     {
         auto highwayWaypoints = calculateHighwayWaypoints();
