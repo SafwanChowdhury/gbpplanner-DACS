@@ -236,7 +236,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         std::string json_string = json_data.dump() + "\n";
 
         // Send the JSON data
-        // radar.sendData(servers[i], json_string);
+        radar.sendData(servers[i], json_string);
     }
 }
 
