@@ -15,14 +15,16 @@
 /*******************************************************************************/
 // Raylib setup
 /*******************************************************************************/
-Simulator::Simulator()
+Simulator::Simulator(const std::vector<std::string> &radarIPs)
     : radar(), waypoint_sender()
 {
     SetTraceLogLevel(LOG_ERROR);
     if (globals.USE_RADAR)
     {
-        radar.addServer("192.168.1.150", 39846);
-        radar.addServer("192.168.1.49", 39846);
+        for (const auto &ip : radarIPs)
+        {
+            radar.addServer(ip, 39846);
+        }
         radar.start();
     }
     else
@@ -234,7 +236,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         std::string json_string = json_data.dump() + "\n";
 
         // Send the JSON data
-        radar.sendData(servers[i], json_string);
+        // radar.sendData(servers[i], json_string);
     }
 }
 

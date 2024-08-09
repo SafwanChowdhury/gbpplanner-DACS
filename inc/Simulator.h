@@ -38,7 +38,7 @@ public:
     friend class Factor;
 
     // Constructor
-    Simulator();
+    Simulator(const std::vector<std::string> &radarIPs = std::vector<std::string>());
     ~Simulator();
 
     // Pointer to Graphics class which hold all the camera, graphics and models for display

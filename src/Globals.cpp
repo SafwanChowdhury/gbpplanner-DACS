@@ -53,25 +53,44 @@ Globals::Globals() {};
 /*****************************************************************/
 // Allows for parsing of an external config file
 /*****************************************************************/
-int Globals::parse_global_args(DArgs::DArgs &dargs)
+int Globals::parse_global_args(int argc, char **argv)
 {
-    // Argument parser
-    this->CONFIG_FILE = dargs("--cfg", "config_file", this->CONFIG_FILE);
+    bool cfg_file_set = false;
 
-    if (!dargs.check())
+    for (int i = 1; i < argc; ++i)
     {
-        dargs.print_help();
-        print("Incorrect arguments!");
+        std::string arg = argv[i];
+        if (arg == "--cfg" && i + 1 < argc)
+        {
+            this->CONFIG_FILE = argv[i + 1];
+            cfg_file_set = true;
+            ++i; // Skip the next argument as we've already processed it
+        }
+        else if (arg == "--radar-ip" && i + 1 < argc)
+        {
+            RADAR_IPS.push_back(argv[i + 1]);
+            ++i; // Skip the next argument as we've already processed it
+        }
+    }
+
+    if (!cfg_file_set)
+    {
+        std::cout << "Error: Config file not specified. Use --cfg <config_file_path>" << std::endl;
         return EXIT_FAILURE;
     }
 
     std::ifstream my_config_file(CONFIG_FILE);
-    assert(my_config_file && "Couldn't find the config file");
+    if (!my_config_file)
+    {
+        std::cout << "Error: Couldn't find the config file: " << CONFIG_FILE << std::endl;
+        return EXIT_FAILURE;
+    }
+
     parse_global_args(my_config_file);
     post_parsing();
 
-    return 0;
-};
+    return EXIT_SUCCESS;
+}
 
 /*****************************************************************/
 // Any checks on the input configs should go here.
@@ -87,4 +106,17 @@ void Globals::post_parsing()
         print("Capping MAX_SPEED parameter at ", MAX_SPEED);
     }
     T0 = ROBOT_RADIUS / 2.f / MAX_SPEED; // Time between current state and next state of planned path
+
+    if (!RADAR_IPS.empty())
+    {
+        print("Parsed Radar IPs:");
+        for (const auto &ip : RADAR_IPS)
+        {
+            print(" - ", ip);
+        }
+    }
+    else
+    {
+        print("No Radar IPs provided.");
+    }
 }

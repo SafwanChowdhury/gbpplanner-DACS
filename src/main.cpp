@@ -17,12 +17,11 @@ Globals globals;
 int main(int argc, char *argv[])
 {
 
-    srand((int)globals.SEED);       // Initialise random seed
-    DArgs::DArgs dargs(argc, argv); // Parse config file argument --cfg <file.json>
-    if (globals.parse_global_args(dargs))
+    srand((int)globals.SEED); // Initialise random seed
+    if (globals.parse_global_args(argc, argv))
         return EXIT_FAILURE;
 
-    Simulator *sim = new Simulator(); // Initialise the simulator
+    Simulator *sim = new Simulator(globals.RADAR_IPS);
     globals.RUN = true;
     while (globals.RUN)
     {

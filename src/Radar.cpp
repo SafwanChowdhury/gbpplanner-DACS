@@ -312,10 +312,10 @@ void Radar::sendData(const ServerInfo &server, const std::string &data)
         {
             std::cerr << "Warning: Only " << bytes_sent << " of " << data.length() << " bytes sent to " << server.ip << ":" << server.port << std::endl;
         }
-        else
-        {
-            std::cout << "Successfully sent " << bytes_sent << " bytes to " << server.ip << ":" << server.port << std::endl;
-        }
+        // else
+        // {
+        //     std::cout << "Successfully sent " << bytes_sent << " bytes to " << server.ip << ":" << server.port << std::endl;
+        // }
     }
     else
     {

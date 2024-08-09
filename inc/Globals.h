@@ -8,6 +8,8 @@
 #include <DArgs.h>
 #include <fstream>
 #include "json.hpp"
+#include <string>
+#include <vector>
 
 // Simulation modes
 enum MODES_LIST
@@ -66,7 +68,8 @@ public:
     bool USE_RADAR;                 // Use radar or not
 
     Globals();
-    int parse_global_args(DArgs::DArgs &dargs);
+    int parse_global_args(int argc, char **argv);
     void parse_global_args(std::ifstream &config_file);
     void post_parsing();
+    std::vector<std::string> RADAR_IPS;
 };
