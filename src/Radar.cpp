@@ -293,3 +293,32 @@ bool Radar::performWebSocketHandshake(int sockfd, const std::string &host, int p
     std::cout << "Handshake response: " << response << std::endl;
     return response.find("HTTP/1.1 101") != std::string::npos;
 }
+
+std::vector<ServerInfo> Radar::getServers() const
+{
+    return servers;
+}
+
+void Radar::sendData(const ServerInfo &server, const std::string &data)
+{
+    if (server.sockfd != -1)
+    {
+        ssize_t bytes_sent = send(server.sockfd, data.c_str(), data.length(), 0);
+        if (bytes_sent == -1)
+        {
+            std::cerr << "Error sending data to " << server.ip << ":" << server.port << ": " << strerror(errno) << std::endl;
+        }
+        else if (static_cast<size_t>(bytes_sent) < data.length())
+        {
+            std::cerr << "Warning: Only " << bytes_sent << " of " << data.length() << " bytes sent to " << server.ip << ":" << server.port << std::endl;
+        }
+        else
+        {
+            std::cout << "Successfully sent " << bytes_sent << " bytes to " << server.ip << ":" << server.port << std::endl;
+        }
+    }
+    else
+    {
+        std::cerr << "Error: Socket not connected for " << server.ip << ":" << server.port << std::endl;
+    }
+}

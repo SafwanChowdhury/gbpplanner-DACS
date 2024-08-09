@@ -29,6 +29,8 @@ public:
     void stop();
     void setZeroPoint();
     std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> getLatestData();
+    std::vector<ServerInfo> getServers() const;
+    void sendData(const ServerInfo &server, const std::string &data);
 
 private:
     void connectWebSocket(ServerInfo &server);

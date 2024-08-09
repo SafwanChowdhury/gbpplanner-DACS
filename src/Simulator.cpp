@@ -212,26 +212,30 @@ std::vector<std::tuple<double, double, double, double, double, double, double>> 
 
 void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double>> &values)
 {
-    for (size_t i = 0; i < values.size(); ++i)
+    auto servers = radar.getServers();
+    size_t num_servers = servers.size();
+
+    if (num_servers == 0 || values.empty())
+    {
+        return;
+    }
+
+    for (size_t i = 0; i < num_servers && i < values.size(); ++i)
     {
         const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed] = values[i];
-        std::cout << "Robot " << i << ": Position = (" << x << ", " << y << "), "
-                  << "Velocity = (" << vx << ", " << vy << "), "
-                  << "Acceleration = " << acceleration << ", "
-                  << "Turn Angle = " << turn_angle << ", "
-                  << "Next Speed = " << next_speed << std::endl;
+
+        nlohmann::json json_data = {
+            {"position", {{"x", x}, {"y", y}}},
+            {"velocity", {{"x", vx}, {"y", vy}}},
+            {"acceleration", acceleration},
+            {"turn_angle", turn_angle},
+            {"next_speed", next_speed}};
+
+        std::string json_string = json_data.dump() + "\n";
+
+        // Send the JSON data
+        radar.sendData(servers[i], json_string);
     }
-    // print all waypoints for robot 1
-    // if (robotIt != robots_.end())
-    // {
-    //     auto &robot = robotIt->second;
-    //     std::cout << "Robot 1 waypoints: ";
-    //     for (const auto &waypoint : robot->waypoints_)
-    //     {
-    //         std::cout << "(" << waypoint.x() << ", " << waypoint.y() << ") ";
-    //     }
-    //     std::cout << std::endl;
-    // }
 }
 
 /*******************************************************************************/
