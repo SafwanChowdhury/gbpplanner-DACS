@@ -36,3 +36,6 @@ debug/
 
 # Python
 __pycache__/
+generate_detailed_summary.sh
+generate_summary.sh
+branch_summary_ETS2-DACS.txt
