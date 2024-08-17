@@ -66,6 +66,7 @@ public:
     int NUM_ITERS;                  // Number of iterations of GBP per timestep
     float DAMPING = 0.;             // Damping amount (not used in this work)
     bool USE_RADAR;                 // Use radar or not
+    float WAYPOINT_RADIUS;          // Radius to consider waypoint as reached
 
     Globals();
     int parse_global_args(int argc, char **argv);

@@ -46,6 +46,7 @@ void Globals::parse_global_args(std::ifstream &config_file)
     NUM_ITERS = j["NUM_ITERS"];
 
     USE_RADAR = j["USE_RADAR"];
+    WAYPOINT_RADIUS = j["WAYPOINT_RADIUS"];
 }
 
 Globals::Globals() {};

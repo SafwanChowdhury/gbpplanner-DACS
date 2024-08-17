@@ -1,6 +1,6 @@
 #include "WaypointSender.h"
 
-WaypointSender::WaypointSender() : sending_waypoints(false), robot2_failure_point(-1), robot2_failed(false) {}
+WaypointSender::WaypointSender() : sending_waypoints(false) {}
 
 WaypointSender::~WaypointSender()
 {
@@ -9,11 +9,11 @@ WaypointSender::~WaypointSender()
 
 void WaypointSender::loadWaypoints()
 {
-    loadWaypointsFromFile(TRUCK1_WAYPOINTS_FILE, truck1_waypoints);
-    loadWaypointsFromFile(TRUCK2_WAYPOINTS_FILE, truck2_waypoints);
+    loadWaypointsFromFile(TRUCK1_WAYPOINTS_FILE, waypoints[1]);
+    loadWaypointsFromFile(TRUCK2_WAYPOINTS_FILE, waypoints[2]);
 }
 
-void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::VectorXd> &waypoints)
+void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::VectorXd> &robot_waypoints)
 {
     std::ifstream file(filename);
     if (!file.is_open())
@@ -22,7 +22,7 @@ void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vec
         return;
     }
 
-    waypoints.clear();
+    robot_waypoints.clear();
     std::string line;
     while (std::getline(file, line))
     {
@@ -33,7 +33,7 @@ void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vec
         {
             Eigen::VectorXd waypoint(5);
             waypoint << truck_id, x, z, vx, vz;
-            waypoints.push_back(waypoint);
+            robot_waypoints.push_back(waypoint);
         }
         else
         {
@@ -41,7 +41,7 @@ void WaypointSender::loadWaypointsFromFile(const std::string &filename, std::vec
         }
     }
 
-    std::cout << "Loaded " << waypoints.size() << " waypoints from " << filename << std::endl;
+    std::cout << "Loaded " << robot_waypoints.size() << " waypoints from " << filename << std::endl;
 }
 
 void WaypointSender::startSendingWaypoints()
@@ -71,39 +71,60 @@ std::map<int, Eigen::Vector4d> WaypointSender::getLatestWaypoints()
     return latest_waypoints;
 }
 
-void WaypointSender::setRobot2FailurePoint(int failure_point)
+void WaypointSender::setRobotFailurePoint(int robot_id, int failure_point)
 {
-    robot2_failure_point = failure_point;
+    failure_points[robot_id] = failure_point;
+}
+
+void WaypointSender::clearRobotFailurePoint(int robot_id)
+{
+    failure_points.erase(robot_id);
+}
+
+bool WaypointSender::hasFailurePoint(int robot_id) const
+{
+    return failure_points.find(robot_id) != failure_points.end();
 }
 
 void WaypointSender::sendWaypointsThread()
 {
-    size_t truck1_index = 0, truck2_index = 0;
-    robot2_failed = false;
+    std::map<int, size_t> indices;
+
+    for (const auto &pair : waypoints)
+    {
+        indices[pair.first] = 0;
+        robot_failed[pair.first] = false;
+    }
+
     while (sending_waypoints)
     {
-        if (truck1_index < truck1_waypoints.size())
-        {
-            updateLatestWaypoint(1, truck1_waypoints[truck1_index]);
-            truck1_index++;
-        }
+        bool all_finished = true;
 
-        if (truck2_index < truck2_waypoints.size() && !robot2_failed)
+        for (auto &pair : waypoints)
         {
-            updateLatestWaypoint(2, truck2_waypoints[truck2_index]);
-            truck2_index++;
+            int robot_id = pair.first;
+            auto &robot_waypoints = pair.second;
 
-            // Check if we've reached the failure point for robot 2
-            if (robot2_failure_point >= 0 && truck2_index >= static_cast<size_t>(robot2_failure_point))
+            if (indices[robot_id] < robot_waypoints.size() && !robot_failed[robot_id])
             {
-                std::cout << "Simulating communication failure for robot 2 at waypoint " << truck2_index << std::endl;
-                robot2_failed = true;
+                updateLatestWaypoint(robot_id, robot_waypoints[indices[robot_id]]);
+                indices[robot_id]++;
+
+                // Check if we've reached the failure point for this robot
+                auto failure_it = failure_points.find(robot_id);
+                if (failure_it != failure_points.end() && indices[robot_id] >= static_cast<size_t>(failure_it->second))
+                {
+                    std::cout << "Simulating communication failure for robot " << robot_id << " at waypoint " << indices[robot_id] << std::endl;
+                    robot_failed[robot_id] = true;
+                }
+
+                all_finished = false;
             }
         }
 
-        if (truck1_index >= truck1_waypoints.size() && (truck2_index >= truck2_waypoints.size() || robot2_failed))
+        if (all_finished)
         {
-            std::cout << "All waypoints sent or robot 2 failed. Stopping." << std::endl;
+            std::cout << "All waypoints sent or all robots failed. Stopping." << std::endl;
             sending_waypoints = false;
         }
 
@@ -111,8 +132,14 @@ void WaypointSender::sendWaypointsThread()
     }
 }
 
-void WaypointSender::updateLatestWaypoint(int truck_id, const Eigen::VectorXd &waypoint)
+bool WaypointSender::isRobotFailed(int robot_id) const
+{
+    auto it = robot_failed.find(robot_id);
+    return (it != robot_failed.end()) && it->second;
+}
+
+void WaypointSender::updateLatestWaypoint(int robot_id, const Eigen::VectorXd &waypoint)
 {
     std::lock_guard<std::mutex> lock(waypoints_mutex);
-    latest_waypoints[truck_id] = Eigen::Vector4d(waypoint[1], waypoint[2], waypoint[3], waypoint[4]);
+    latest_waypoints[robot_id] = Eigen::Vector4d(waypoint[1], waypoint[2], waypoint[3], waypoint[4]);
 }

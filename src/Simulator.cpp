@@ -30,8 +30,8 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         waypoint_sender.loadWaypoints();
-        waypoint_sender.setRobot2FailurePoint(waypoint_sender.truck2_waypoints.size() / 4);
-        // waypoint_sender.setRobot2FailurePoint(-1);
+        // waypoint_sender.setRobotFailurePoint(1, 30); // Set failure points for specific robots if needed
+
         waypoint_sender.startSendingWaypoints();
     }
 
@@ -107,11 +107,14 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
     {
         return; // Robot not found, exit early
     }
-
     auto &robot = robotIt->second;
 
-    // Update position, keeping velocity at 0
-    robot->position_ = Eigen::Vector4d(x, y, vx, vy);
+    // Check if the robot has failed
+    if (!waypoint_sender.isRobotFailed(robotIndex))
+    {
+        // Update position only if the robot hasn't failed
+        robot->position_ = Eigen::Vector4d(x, y, vx, vy);
+    }
 
     if (robotIndex == 1 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
     {
@@ -169,13 +172,14 @@ void Simulator::updateRobotsFromRadar()
     else
     {
         auto waypoints = waypoint_sender.getLatestWaypoints();
-        for (const auto &[robot_id, waypoint] : waypoints)
+        for (const auto &[robot_id, _] : robots_)
         {
-            if (robot_id == 2 && waypoint_sender.robot2_failed == true)
+            auto it = waypoints.find(robot_id);
+            if (it != waypoints.end())
             {
-                continue;
+                const auto &waypoint = it->second;
+                updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
             }
-            updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
         }
     }
 }
@@ -609,7 +613,7 @@ void Simulator::createOrDeleteRobots()
                 waypoint << 150., -2., 0., 0.;
 
                 Eigen::VectorXd waypoint2(4);
-                waypoint2 << -150., -20., 0., 0.;
+                waypoint2 << 150., 10., 0., 0.;
 
                 Eigen::VectorXd waypoint3(4);
                 waypoint3 << -250., -50., 0., 0.;
@@ -621,12 +625,13 @@ void Simulator::createOrDeleteRobots()
                 waypoints.push_back(initialPosition);
                 if (i == 1)
                 {
-                    waypoints.push_back(waypoint);
+                    waypoints.push_back(initialPosition);
                     waypoints.push_back(waypoint);
                 }
                 else
                 {
-                    waypoints.push_back(waypoint3);
+                    waypoints.push_back(initialPosition);
+                    waypoints.push_back(waypoint2);
                     waypoints.push_back(waypoint3);
                     waypoints.push_back(waypoint4);
                 }

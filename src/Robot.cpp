@@ -155,7 +155,7 @@ void Robot::updateHorizon()
 
     // If the horizon has reached the waypoint, pop that waypoint from the waypoints.
     // Could add other waypoint behaviours here (maybe they might move, or change randomly).
-    if (dist_horz_to_goal.norm() < robot_radius_)
+    if (dist_horz_to_goal.norm() < globals.WAYPOINT_RADIUS)
     {
         if (waypoints_.size() > 1)
         {
@@ -289,12 +289,6 @@ void Robot::updatePlannedPath()
             variable->change_variable_prior(interpolated);
             variable_count++;
         }
-    }
-
-    // Update the first waypoint to be the current position
-    if (!waypoints_.empty())
-    {
-        waypoints_[0] = position_;
     }
 }
 

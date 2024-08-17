@@ -1,15 +1,15 @@
-#ifndef WAYPOINT_SENDER_H
-#define WAYPOINT_SENDER_H
+#pragma once
 
-#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <thread>
+#include <mutex>
+#include <atomic>
 #include <fstream>
 #include <sstream>
-#include <vector>
-#include <thread>
+#include <iostream>
 #include <chrono>
-#include <atomic>
-#include <mutex>
-#include <map>
 #include <Eigen/Dense>
 
 class WaypointSender
@@ -17,28 +17,30 @@ class WaypointSender
 public:
     WaypointSender();
     ~WaypointSender();
-    std::vector<Eigen::VectorXd> truck1_waypoints;
-    std::vector<Eigen::VectorXd> truck2_waypoints;
+
     void loadWaypoints();
     void startSendingWaypoints();
     void stopSendingWaypoints();
     std::map<int, Eigen::Vector4d> getLatestWaypoints();
-    void setRobot2FailurePoint(int failure_point);
-    int robot2_failure_point;
-    bool robot2_failed;
+    void setRobotFailurePoint(int robot_id, int failure_point);
+    void clearRobotFailurePoint(int robot_id);
+    bool isRobotFailed(int robot_id) const;
 
 private:
     const std::string TRUCK1_WAYPOINTS_FILE = "../assets/scripts/Truck1Waypoints.txt";
     const std::string TRUCK2_WAYPOINTS_FILE = "../assets/scripts/Truck2Waypoints.txt";
 
+    std::map<int, std::vector<Eigen::VectorXd>> waypoints;
+    std::map<int, int> failure_points;
     std::map<int, Eigen::Vector4d> latest_waypoints;
-    std::atomic<bool> sending_waypoints;
+    std::map<int, bool> robot_failed;
+
     std::thread waypoint_thread;
     std::mutex waypoints_mutex;
+    std::atomic<bool> sending_waypoints;
 
+    void loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::VectorXd> &robot_waypoints);
     void sendWaypointsThread();
-    void loadWaypointsFromFile(const std::string &filename, std::vector<Eigen::VectorXd> &waypoints);
-    void updateLatestWaypoint(int truck_id, const Eigen::VectorXd &waypoint);
+    void updateLatestWaypoint(int robot_id, const Eigen::VectorXd &waypoint);
+    bool hasFailurePoint(int robot_id) const;
 };
-
-#endif // WAYPOINT_SENDER_H
