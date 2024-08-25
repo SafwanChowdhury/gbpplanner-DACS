@@ -273,7 +273,8 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         {
             all_trucks_data.push_back({{"host_id", host_id},
                                        {"position", {{"x", coord.x()}, {"y", coord.y()}}},
-                                       {"velocity", {{"x", vel_it->second.x()}, {"y", vel_it->second.y()}}}});
+                                       {"velocity", {{"x", vel_it->second.x()}, {"y", vel_it->second.y()}}},
+                                       {"robot_id", mapHostToRobot(host_id)}});
         }
     }
 
@@ -284,7 +285,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         const auto &server = servers[i];
 
         nlohmann::json json_data = {
-            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}}},
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}}},
             {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";
