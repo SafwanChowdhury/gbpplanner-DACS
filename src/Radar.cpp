@@ -17,7 +17,25 @@ Radar::~Radar()
 
 void Radar::addServer(const std::string &server_ip, int server_port)
 {
+    std::string server_id = server_ip + ":" + std::to_string(server_port);
     servers.push_back({server_ip, server_port, -1});
+    server_order.push_back(server_id);
+}
+
+std::vector<std::string> Radar::getServerOrder() const
+{
+    return server_order;
+}
+
+void Radar::mapHostIdToServer(const std::string &server_id, const std::string &host_id)
+{
+    server_to_host_id[server_id] = host_id;
+    host_to_server_id[host_id] = server_id;
+}
+
+bool Radar::hasReceivedHostId(const std::string &server_id) const
+{
+    return server_to_host_id.find(server_id) != server_to_host_id.end();
 }
 
 size_t Radar::getServerCount() const
@@ -71,8 +89,29 @@ void Radar::setZeroPoint()
 
 std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> Radar::getLatestData()
 {
-    std::lock_guard<std::mutex> lock(data_mutex);                 // Lock the data mutex to prevent data from being modified
-    return std::make_pair(latest_coordinates, latest_velocities); // Return the latest coordinates and velocity
+    std::lock_guard<std::mutex> lock(data_mutex);
+    std::map<std::string, Eigen::Vector2d> host_coordinates;
+    std::map<std::string, Eigen::Vector2d> host_velocities;
+
+    for (const auto &pair : latest_coordinates)
+    {
+        std::string host_id = getHostIdForServer(pair.first);
+        if (!host_id.empty())
+        {
+            host_coordinates[host_id] = pair.second;
+        }
+    }
+
+    for (const auto &pair : latest_velocities)
+    {
+        std::string host_id = getHostIdForServer(pair.first);
+        if (!host_id.empty())
+        {
+            host_velocities[host_id] = pair.second;
+        }
+    }
+
+    return std::make_pair(host_coordinates, host_velocities);
 }
 
 void Radar::connectWebSocket(ServerInfo &server)
@@ -186,6 +225,15 @@ void Radar::processTruckData(const std::string &server_id, const nlohmann::json 
     std::lock_guard<std::mutex> lock(data_mutex);
     try
     {
+        if (data.contains("host_id"))
+        {
+            std::string host_id = data["host_id"];
+            if (!hasReceivedHostId(server_id))
+            {
+                mapHostIdToServer(server_id, host_id);
+                std::cout << "Mapped host_id: " << host_id << " to server_id: " << server_id << std::endl;
+            }
+        }
         if (data.contains("api") && data["api"].is_object() &&
             data["api"].contains("truckPlacement") && data["api"]["truckPlacement"].is_object())
         {
@@ -221,14 +269,19 @@ void Radar::processTruckData(const std::string &server_id, const nlohmann::json 
                 std::cerr << "Missing velocity data in truckPlacement for " << server_id << std::endl;
             }
         }
-        else
-        {
-            std::cerr << "Invalid JSON structure received from " << server_id << std::endl;
-        }
     }
     catch (const nlohmann::json::exception &e)
     {
         std::cerr << "JSON processing error for " << server_id << ": " << e.what() << std::endl;
+    }
+}
+
+void Radar::printHostServerMappings() const
+{
+    std::cout << "Current host_id to server_id mappings:" << std::endl;
+    for (const auto &pair : host_to_server_id)
+    {
+        std::cout << "host_id: " << pair.first << " -> server_id: " << pair.second << std::endl;
     }
 }
 
@@ -321,4 +374,26 @@ void Radar::sendData(const ServerInfo &server, const std::string &data)
     {
         std::cerr << "Error: Socket not connected for " << server.ip << ":" << server.port << std::endl;
     }
+}
+
+std::string Radar::getServerIdForHost(const std::string &host_id)
+{
+    auto it = host_to_server_id.find(host_id);
+    if (it != host_to_server_id.end())
+    {
+        return it->second;
+    }
+    return ""; // Return empty string if host_id is not found
+}
+
+std::string Radar::getHostIdForServer(const std::string &server_id) const
+{
+    for (const auto &pair : host_to_server_id)
+    {
+        if (pair.second == server_id)
+        {
+            return pair.first;
+        }
+    }
+    return ""; // Return empty string if server_id is not found
 }

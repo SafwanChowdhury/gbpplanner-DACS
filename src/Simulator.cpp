@@ -26,6 +26,10 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
             radar.addServer(ip, 39846);
         }
         radar.start();
+
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        initializeRobotMapping();
     }
     else
     {
@@ -155,10 +159,10 @@ void Simulator::updateRobotsFromRadar()
     if (globals.USE_RADAR)
     {
         auto [coordinates, velocities] = radar.getLatestData();
-        for (const auto &[server_id, coord] : coordinates)
+        for (const auto &[host_id, coord] : coordinates)
         {
-            int robot_id = mapServerToRobot(server_id);
-            auto vel_it = velocities.find(server_id);
+            int robot_id = mapHostToRobot(host_id);
+            auto vel_it = velocities.find(host_id);
             if (vel_it != velocities.end())
             {
                 updateRobotPosition(robot_id, coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
@@ -167,6 +171,7 @@ void Simulator::updateRobotsFromRadar()
             {
                 updateRobotPosition(robot_id, coord.x(), coord.y(), 0.0, 0.0);
             }
+            std::string server_id = radar.getServerIdForHost(host_id);
         }
     }
     else
@@ -184,39 +189,69 @@ void Simulator::updateRobotsFromRadar()
     }
 }
 
-int Simulator::mapServerToRobot(const std::string &server_id) // Map the server id to a robot id
+void Simulator::initializeRobotMapping()
 {
-    static std::map<std::string, int> server_to_robot_map;
-    static int next_robot_id = 1;
-
-    if (server_to_robot_map.find(server_id) == server_to_robot_map.end()) // If the server id is not found in the map
+    auto server_order = radar.getServerOrder();
+    for (const auto &server_id : server_order)
     {
-        server_to_robot_map[server_id] = next_robot_id++; // Assign the next robot id to the server id
+        if (radar.hasReceivedHostId(server_id))
+        {
+            std::string host_id = radar.getHostIdForServer(server_id);
+            if (host_to_robot_map.find(host_id) == host_to_robot_map.end())
+            {
+                host_to_robot_map[host_id] = next_robot_id;
+                robot_to_host_map[next_robot_id] = host_id;
+                next_robot_id++;
+            }
+        }
     }
-
-    return server_to_robot_map[server_id]; // Return the robot id
 }
 
-std::vector<std::tuple<double, double, double, double, double, double, double>> Simulator::getIterationValues() const
+int Simulator::mapHostToRobot(const std::string &host_id)
 {
-    std::vector<std::tuple<double, double, double, double, double, double, double>> values;
+    auto it = host_to_robot_map.find(host_id);
+    if (it != host_to_robot_map.end())
+    {
+        return it->second;
+    }
+    // If not found, create a new mapping
+    int new_robot_id = next_robot_id++;
+    host_to_robot_map[host_id] = new_robot_id;
+    robot_to_host_map[new_robot_id] = host_id;
+    return new_robot_id;
+}
+
+std::string Simulator::getHostIdForRobot(int robot_id) const
+{
+    auto it = robot_to_host_map.find(robot_id);
+    return (it != robot_to_host_map.end()) ? it->second : "";
+}
+
+std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> Simulator::getIterationValues() const
+{
+    std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> values;
     for (const auto &[rid, robot] : robots_)
     {
         auto robotData = robot->getData();
-        values.push_back(std::make_tuple(
-            robot->position_(0),    // x position
-            robot->position_(1),    // y position
-            robot->position_(2),    // x velocity
-            robot->position_(3),    // y velocity
-            std::get<0>(robotData), // last_acceleration_
-            std::get<1>(robotData), // last_turn_angle_
-            std::get<2>(robotData)  // last_next_speed_
-            ));
+        std::string host_id = getHostIdForRobot(rid);
+        if (!host_id.empty())
+        {
+            values.push_back(std::make_tuple(
+                robot->position_(0),    // x position
+                robot->position_(1),    // y position
+                robot->position_(2),    // x velocity
+                robot->position_(3),    // y velocity
+                std::get<0>(robotData), // last_acceleration_
+                std::get<1>(robotData), // last_turn_angle_
+                std::get<2>(robotData), // last_next_speed_
+                host_id                 // unique identifier (host ID)
+                ));
+        }
     }
     return values;
 }
 
-void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double>> &values)
+void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values)
 {
     auto servers = radar.getServers();
     size_t num_servers = servers.size();
@@ -226,21 +261,36 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         return;
     }
 
+    // Get the latest radar data
+    auto [coordinates, velocities] = radar.getLatestData();
+
+    // Prepare data for all trucks using only radar data
+    nlohmann::json all_trucks_data;
+    for (const auto &[host_id, coord] : coordinates)
+    {
+        auto vel_it = velocities.find(host_id);
+        if (vel_it != velocities.end())
+        {
+            all_trucks_data.push_back({{"host_id", host_id},
+                                       {"position", {{"x", coord.x()}, {"y", coord.y()}}},
+                                       {"velocity", {{"x", vel_it->second.x()}, {"y", vel_it->second.y()}}}});
+        }
+    }
+
+    // Send data to each truck
     for (size_t i = 0; i < num_servers && i < values.size(); ++i)
     {
-        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed] = values[i];
+        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
+        const auto &server = servers[i];
 
         nlohmann::json json_data = {
-            {"position", {{"x", x}, {"y", y}}},
-            {"velocity", {{"x", vx}, {"y", vy}}},
-            {"acceleration", acceleration},
-            {"turn_angle", turn_angle},
-            {"next_speed", next_speed}};
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}}},
+            {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";
 
         // Send the JSON data
-        radar.sendData(servers[i], json_string);
+        radar.sendData(server, json_string);
     }
 }
 

@@ -27,7 +27,13 @@
 class Robot;
 class Graphics;
 class TreeOfRobots;
-
+struct TruckData
+{
+    double x;
+    double y;
+    double vx;
+    double vy;
+};
 /************************************************************************************/
 // The main Simulator. This is where the magic happens.
 /************************************************************************************/
@@ -136,8 +142,18 @@ public:
     WaypointSender waypoint_sender;
 
     void updateRobotsFromRadar();
-    int mapServerToRobot(const std::string &server_id);
+    std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> getIterationValues() const;
+    void sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values);
+    void updateReceivedTruckData(int rid, double x, double y, double vx, double vy);
+    void initializeRobotMapping();
+    int mapHostToRobot(const std::string &host_id);
+    std::string getHostIdForRobot(int robot_id) const;
 
-    std::vector<std::tuple<double, double, double, double, double, double, double>> getIterationValues() const;
-    void sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double>> &values);
+private:
+    std::map<int, TruckData> receivedTruckData;
+    std::map<std::string, int> server_to_robot_map;
+    std::map<int, std::string> robot_to_server_map;
+    std::map<std::string, int> host_to_robot_map;
+    std::map<int, std::string> robot_to_host_map;
+    int next_robot_id = 1;
 };

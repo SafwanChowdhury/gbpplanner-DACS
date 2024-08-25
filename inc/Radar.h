@@ -31,6 +31,12 @@ public:
     std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> getLatestData();
     std::vector<ServerInfo> getServers() const;
     void sendData(const ServerInfo &server, const std::string &data);
+    std::map<std::string, std::string> host_to_server_id;
+    std::string getHostIdForServer(const std::string &server_id) const;
+    std::string getServerIdForHost(const std::string &host_id);
+    std::vector<std::string> getServerOrder() const;
+    void mapHostIdToServer(const std::string &server_id, const std::string &host_id);
+    bool hasReceivedHostId(const std::string &server_id) const;
 
 private:
     void connectWebSocket(ServerInfo &server);
@@ -41,6 +47,7 @@ private:
     void processCoordinates(const std::string &server_id, double originalX, double originalZ);
     void processVelocity(const std::string &server_id, double velocityX, double velocityZ);
     void handleConnectionFailure(ServerInfo &server);
+    void printHostServerMappings() const;
 
     std::vector<ServerInfo> servers;
     Eigen::Vector2d zero_point;
@@ -51,4 +58,7 @@ private:
     std::map<std::string, Eigen::Vector2d> raw_coordinates;
     const double zoom_factor = 3.44; // new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
     std::map<std::string, Eigen::Vector2d> latest_velocities;
+
+    std::vector<std::string> server_order;
+    std::map<std::string, std::string> server_to_host_id;
 };

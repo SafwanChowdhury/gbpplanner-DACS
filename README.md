@@ -76,6 +76,12 @@ Towards the end of ```src/Simulator.cpp``` there is a function called ```createO
 - Covert your image to a distance field image using the function in ```assets/scripts/create_distance_field.py```
 - Edit the OBSTACLE_FILE value in your config.json file with the new distance image
 
+## ETS2-DACS GBPPlanner
+```shell
+./gbpplanner --cfg "../config/ets2.json" --radar-ip "192.168.1.150" --radar-ip "192.168.1.49"
+```
+- Run custom GBPPlanner with ETS2LA, use the ip of the truck servers for the radar
+
 ## Cite us
 ```
 @ARTICLE{gbpplanner,
