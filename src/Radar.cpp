@@ -293,9 +293,12 @@ void Radar::processCoordinates(const std::string &server_id, double originalX, d
         return;
     }
 
-    // Calculate relative coordinates
+    // Calculate relative coordinates (after zeroing)
     double relativeX = originalX - zero_point.x();
     double relativeZ = originalZ - zero_point.y();
+
+    // Store the relative coordinates
+    relative_coordinates[getHostIdForServer(server_id)] = Eigen::Vector2d(relativeX, relativeZ);
 
     // Apply zoom to relative coordinates
     double scaledX = relativeX * 10 / zoom_factor;
@@ -307,6 +310,21 @@ void Radar::processCoordinates(const std::string &server_id, double originalX, d
 
     // Store the processed coordinates
     latest_coordinates[server_id] = Eigen::Vector2d(rotatedX, rotatedY);
+}
+
+std::map<std::string, Eigen::Vector2d> Radar::getRelativeCoordinates() const
+{
+    std::lock_guard<std::mutex> lock(data_mutex);
+    return relative_coordinates;
+}
+
+void Radar::printRelativeCoordinates() const
+{
+    std::cout << "Current relative coordinates:" << std::endl;
+    for (const auto &pair : relative_coordinates)
+    {
+        std::cout << "server_id: " << pair.first << " -> relative coordinates: (" << pair.second.x() << ", " << pair.second.y() << ")" << std::endl;
+    }
 }
 
 void Radar::processVelocity(const std::string &server_id, double velocityX, double velocityZ)

@@ -154,6 +154,52 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
     }
 }
 
+std::map<int, double> Simulator::calculateTimeToWaypoint()
+{
+    std::map<int, double> time_to_waypoint;
+
+    if (globals.USE_RADAR)
+    {
+        auto relative_coords = radar.getRelativeCoordinates();
+        auto velocities = radar.getLatestData().second;
+        for (const auto &[host_id, coord] : relative_coords)
+        {
+            int robot_id = mapHostToRobot(host_id);
+            auto vel_it = velocities.find(host_id);
+
+            if (vel_it != velocities.end())
+            {
+                const Eigen::Vector2d &velocity = vel_it->second;
+
+                // Calculate the Euclidean distance to the waypoint (0, 0)
+                double distance = coord.norm();
+
+                // Calculate the magnitude of the velocity vector
+                double speed = velocity.norm();
+
+                if (speed > 0)
+                {
+                    // Calculate time to waypoint
+                    double time = distance / speed;
+                    time_to_waypoint[robot_id] = time;
+                }
+                else
+                {
+                    // If speed is zero, the time is infinite (or not calculable)
+                    time_to_waypoint[robot_id] = std::numeric_limits<double>::infinity();
+                }
+            }
+            else
+            {
+                // If no velocity data is available, set time to infinity
+                time_to_waypoint[robot_id] = std::numeric_limits<double>::infinity();
+            }
+        }
+    }
+
+    return time_to_waypoint;
+}
+
 void Simulator::updateRobotsFromRadar()
 {
     if (globals.USE_RADAR)
@@ -305,6 +351,12 @@ void Simulator::timestep()
         return;
 
     updateRobotsFromRadar(); // Update the robots' positions from the radar
+
+    auto time_to_waypoints = calculateTimeToWaypoint();
+    for (const auto &[robot_id, time] : time_to_waypoints)
+    {
+        std::cout << "Robot " << robot_id << " time to (0,0): " << time << " seconds" << std::endl;
+    }
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);

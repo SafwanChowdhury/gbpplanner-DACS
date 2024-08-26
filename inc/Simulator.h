@@ -148,6 +148,7 @@ public:
     void initializeRobotMapping();
     int mapHostToRobot(const std::string &host_id);
     std::string getHostIdForRobot(int robot_id) const;
+    std::map<int, double> calculateTimeToWaypoint();
 
 private:
     std::map<int, TruckData> receivedTruckData;
