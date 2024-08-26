@@ -158,7 +158,7 @@ void Simulator::updateRobotsFromRadar()
 {
     if (globals.USE_RADAR)
     {
-        auto [coordinates, velocities] = radar.getLatestData();
+        auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
         for (const auto &[host_id, coord] : coordinates)
         {
             int robot_id = mapHostToRobot(host_id);
@@ -262,7 +262,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
     }
 
     // Get the latest radar data
-    auto [coordinates, velocities] = radar.getLatestData();
+    auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
 
     // Prepare data for all trucks using only radar data
     nlohmann::json all_trucks_data;
@@ -295,6 +295,43 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
     }
 }
 
+void Simulator::printRouteTimes()
+{
+    if (!globals.USE_RADAR)
+    {
+        std::cerr << "Radar is not being used in this simulation." << std::endl;
+        return;
+    }
+
+    // Get the latest radar data
+    auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
+
+    std::cout << "Required Speeds (in mph):" << std::endl;
+    for (const auto &[host_id, route_time] : routeTimes)
+    {
+        // Check if distance information is available
+        if (routeDistances.find(host_id) != routeDistances.end())
+        {
+            double current_distance = routeDistances.at(host_id);
+            double remaining_distance = 40890.0 - current_distance; // 40890 meters is the target distance
+            double remaining_time = 1913.0 - route_time;            // 1913 seconds is the target time
+
+            // Calculate the required speed in meters per second
+            double required_speed_mps = remaining_distance / remaining_time;
+
+            // Convert the required speed from meters per second to miles per hour
+            double required_speed_mph = required_speed_mps * 2.23694;
+
+            std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
+                      << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
+        }
+        else
+        {
+            std::cerr << "No distance data available for truck " << host_id << std::endl;
+        }
+    }
+}
+
 /*******************************************************************************/
 // Timestep loop of simulator.
 /*******************************************************************************/
@@ -305,6 +342,8 @@ void Simulator::timestep()
         return;
 
     updateRobotsFromRadar(); // Update the robots' positions from the radar
+
+    printRouteTimes();
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);

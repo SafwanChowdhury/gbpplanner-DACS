@@ -87,11 +87,14 @@ void Radar::setZeroPoint()
     }
 }
 
-std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> Radar::getLatestData()
+std::tuple<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>, std::map<std::string, double>, std::map<std::string, double>> Radar::getLatestData()
 {
     std::lock_guard<std::mutex> lock(data_mutex);
+
     std::map<std::string, Eigen::Vector2d> host_coordinates;
     std::map<std::string, Eigen::Vector2d> host_velocities;
+    std::map<std::string, double> host_route_times;
+    std::map<std::string, double> host_route_distances;
 
     for (const auto &pair : latest_coordinates)
     {
@@ -111,7 +114,25 @@ std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::V
         }
     }
 
-    return std::make_pair(host_coordinates, host_velocities);
+    for (const auto &pair : latest_route_times)
+    {
+        std::string host_id = getHostIdForServer(pair.first);
+        if (!host_id.empty())
+        {
+            host_route_times[host_id] = pair.second;
+        }
+    }
+
+    for (const auto &pair : latest_route_distances)
+    {
+        std::string host_id = getHostIdForServer(pair.first);
+        if (!host_id.empty())
+        {
+            host_route_distances[host_id] = pair.second;
+        }
+    }
+
+    return std::make_tuple(host_coordinates, host_velocities, host_route_times, host_route_distances);
 }
 
 void Radar::connectWebSocket(ServerInfo &server)
@@ -267,6 +288,21 @@ void Radar::processTruckData(const std::string &server_id, const nlohmann::json 
             else
             {
                 std::cerr << "Missing velocity data in truckPlacement for " << server_id << std::endl;
+            }
+        }
+        if (data["api"].contains("truckFloat") && data["api"]["truckFloat"].is_object())
+        {
+            auto &truckFloat = data["api"]["truckFloat"];
+            if (truckFloat.contains("routeTime") && truckFloat.contains("routeDistance"))
+            {
+                double routeTime = truckFloat["routeTime"];
+                double routeDistance = truckFloat["routeDistance"];
+                latest_route_distances[server_id] = routeDistance;
+                latest_route_times[server_id] = routeTime;
+            }
+            else
+            {
+                std::cerr << "Missing routeTime data in truckFloat for " << server_id << std::endl;
             }
         }
     }

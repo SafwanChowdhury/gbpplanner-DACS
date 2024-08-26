@@ -28,7 +28,7 @@ public:
     void start();
     void stop();
     void setZeroPoint();
-    std::pair<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>> getLatestData();
+    std::tuple<std::map<std::string, Eigen::Vector2d>, std::map<std::string, Eigen::Vector2d>, std::map<std::string, double>, std::map<std::string, double>> getLatestData();
     std::vector<ServerInfo> getServers() const;
     void sendData(const ServerInfo &server, const std::string &data);
     std::map<std::string, std::string> host_to_server_id;
@@ -58,7 +58,8 @@ private:
     std::map<std::string, Eigen::Vector2d> raw_coordinates;
     const double zoom_factor = 3.44; // new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
     std::map<std::string, Eigen::Vector2d> latest_velocities;
-
+    std::map<std::string, double> latest_route_times;
+    std::map<std::string, double> latest_route_distances;
     std::vector<std::string> server_order;
     std::map<std::string, std::string> server_to_host_id;
 };

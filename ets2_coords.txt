@@ -29,3 +29,5 @@ CAMBS Location
 
 
 -37472 20 -17014 - A14
+
+Truck 2 - 1913
