@@ -154,10 +154,12 @@ void Robot::updateCurrent()
 /***************************************************************************************************/
 void Robot::updateHorizon()
 {
+    updateWaypoints();
+
     // Horizon state moves towards the next waypoint.
     // The Horizon state's velocity is capped at MAX_SPEED
     auto horizon = getVar(-1); // get horizon state variable
-    Eigen::VectorXd goal = waypoints_[1];
+    Eigen::VectorXd goal = waypoints_.size() > 1 ? waypoints_[1] : waypoints_[0];
     Eigen::VectorXd dist_horz_to_goal = goal - horizon->mu_({0, 1});
     Eigen::VectorXd new_vel = dist_horz_to_goal.normalized() * std::min((double)globals.MAX_SPEED, dist_horz_to_goal.norm());
     Eigen::VectorXd new_pos = horizon->mu_({0, 1}) + new_vel * globals.TIMESTEP;
@@ -184,8 +186,6 @@ void Robot::updatePlannedPath()
 
     Eigen::VectorXd start = position_;
     Eigen::VectorXd goal = waypoints_[1];
-    printf("Start: %f, %f\n", start(0), start(1));
-    printf("Goal: %f, %f\n", goal(0), goal(1));
     Eigen::VectorXd direction = goal - start;
     double distance = direction.segment<2>(0).norm();
     Eigen::Vector2d velocity = direction.segment<2>(0).normalized() * globals.MAX_SPEED;
@@ -204,6 +204,23 @@ void Robot::updatePlannedPath()
             variable->change_variable_prior(interpolated);
             variable_count++;
         }
+    }
+}
+
+void Robot::updateWaypoints()
+{
+    if (waypoints_.size() < 2)
+        return;
+
+    Eigen::VectorXd current_position = position_.head<2>();
+    Eigen::VectorXd next_waypoint = waypoints_[1].head<2>();
+
+    double distance = (current_position - next_waypoint).norm();
+
+    if (distance < globals.WAYPOINT_RADIUS)
+    {
+        waypoints_.erase(waypoints_.begin() + 1);
+        std::cout << "Robot " << rid_ << " reached waypoint. Remaining waypoints: " << waypoints_.size() - 1 << std::endl;
     }
 }
 

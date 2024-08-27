@@ -57,6 +57,8 @@ public:
 
     /* Change the prior of the Horizon state */
     void updateHorizon();
+    void updatePlannedPath();
+    void updateWaypoints();
 
     /***************************************************************************************************/
     // For new neighbours of a robot, create inter-robot factors if they don't exist.
@@ -65,7 +67,6 @@ public:
     void updateInterrobotFactors();
     void createInterrobotFactors(std::shared_ptr<Robot> other_robot);
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
-    void updatePlannedPath();
 
     /***************************************************************************************************/
     // Drawing function

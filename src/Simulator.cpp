@@ -797,8 +797,8 @@ void Simulator::createOrDeleteRobots()
                 else
                 {
                     waypoints.push_back(initialPosition);
-                    // waypoints.push_back(waypoint2);
-                    // waypoints.push_back(waypoint3);
+                    waypoints.push_back(waypoint2);
+                    waypoints.push_back(waypoint3);
                     waypoints.push_back(waypoint4);
                 }
 
