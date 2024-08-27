@@ -157,7 +157,8 @@ void Robot::updateHorizon()
     // Horizon state moves towards the next waypoint.
     // The Horizon state's velocity is capped at MAX_SPEED
     auto horizon = getVar(-1); // get horizon state variable
-    Eigen::VectorXd dist_horz_to_goal = waypoints_.front()({0, 1}) - horizon->mu_({0, 1});
+    Eigen::VectorXd goal = waypoints_[1];
+    Eigen::VectorXd dist_horz_to_goal = goal - horizon->mu_({0, 1});
     Eigen::VectorXd new_vel = dist_horz_to_goal.normalized() * std::min((double)globals.MAX_SPEED, dist_horz_to_goal.norm());
     Eigen::VectorXd new_pos = horizon->mu_({0, 1}) + new_vel * globals.TIMESTEP;
 
@@ -167,11 +168,41 @@ void Robot::updateHorizon()
 
     // If the horizon has reached the waypoint, pop that waypoint from the waypoints.
     // Could add other waypoint behaviours here (maybe they might move, or change randomly).
-    if (dist_horz_to_goal.norm() < globals.WAYPOINT_RADIUS)
+    // if (dist_horz_to_goal.norm() < globals.WAYPOINT_RADIUS)
+    // {
+    //     if (waypoints_.size() > 1)
+    //     {
+    //         waypoints_.pop_front();
+    //     }
+    // }
+}
+
+void Robot::updatePlannedPath()
+{
+    if (waypoints_.size() < 2)
+        return;
+
+    Eigen::VectorXd start = position_;
+    Eigen::VectorXd goal = waypoints_[1];
+    printf("Start: %f, %f\n", start(0), start(1));
+    printf("Goal: %f, %f\n", goal(0), goal(1));
+    Eigen::VectorXd direction = goal - start;
+    double distance = direction.segment<2>(0).norm();
+    Eigen::Vector2d velocity = direction.segment<2>(0).normalized() * globals.MAX_SPEED;
+
+    int num_variables = variables_.size();
+    int variable_count = 0;
+    for (auto &[key, variable] : variables_)
     {
-        if (waypoints_.size() > 1)
+        if (variable && variable_count < num_variables - 1)
         {
-            waypoints_.pop_front();
+            double t = static_cast<double>(variable_count) / (num_variables - 1);
+            Eigen::VectorXd interpolated(4);
+            interpolated.segment<2>(0) = start.segment<2>(0) + t * direction.segment<2>(0);
+            interpolated.segment<2>(2) = velocity;
+
+            variable->change_variable_prior(interpolated);
+            variable_count++;
         }
     }
 }
@@ -274,35 +305,6 @@ void Robot::deleteInterrobotFactors(std::shared_ptr<Robot> other_robot)
         connected_r_ids_.erase(it);
     }
 };
-
-void Robot::updatePlannedPath()
-{
-    if (waypoints_.size() < 2)
-        return;
-
-    Eigen::VectorXd start = position_;
-    Eigen::VectorXd goal = waypoints_[1];
-
-    Eigen::VectorXd direction = goal - start;
-    double distance = direction.segment<2>(0).norm();
-    Eigen::Vector2d velocity = direction.segment<2>(0).normalized() * globals.MAX_SPEED;
-
-    int num_variables = variables_.size();
-    int variable_count = 0;
-    for (auto &[key, variable] : variables_)
-    {
-        if (variable)
-        {
-            double t = static_cast<double>(variable_count) / (num_variables - 1);
-            Eigen::VectorXd interpolated(4);
-            interpolated.segment<2>(0) = start.segment<2>(0) + t * direction.segment<2>(0);
-            interpolated.segment<2>(2) = velocity;
-
-            variable->change_variable_prior(interpolated);
-            variable_count++;
-        }
-    }
-}
 
 /***************************************************************************************************/
 // Drawing functions for the robot.

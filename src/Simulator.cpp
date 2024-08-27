@@ -34,7 +34,7 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         position_sender.loadPositions();
-        // position_sender.setRobotFailurePoint(1, 10); // Set failure points for specific robots if needed
+        // position_sender.setRobotFailurePoint(1, 50); // Set failure points for specific robots if needed
 
         position_sender.startSendingPositions();
     }
@@ -128,8 +128,9 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
         if (distance <= 10)
         {
             // Robot 1 has reached the merge point
-            robot->waypoints_.pop_back(); // Remove the merge point waypoint
-            robot->has_merged_ = true;    // Set a flag to indicate that Robot 1 has merged
+            // robot->waypoints_.pop_back(); // Remove the merge point waypoint
+            robot->waypoints_.erase(robot->waypoints_.begin() + 1);
+            robot->has_merged_ = true; // Set a flag to indicate that Robot 1 has merged
         }
     }
 
@@ -786,21 +787,20 @@ void Simulator::createOrDeleteRobots()
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
-                waypoints.push_back(initialPosition);
-                waypoints.push_back(waypoint4);
 
-                // if (i == 1)
-                // {
-                //     waypoints.push_back(initialPosition);
-                //     waypoints.push_back(waypoint);
-                // }
-                // else
-                // {
-                //     waypoints.push_back(initialPosition);
-                //     waypoints.push_back(waypoint2);
-                //     waypoints.push_back(waypoint3);
-                //     waypoints.push_back(waypoint4);
-                // }
+                if (i == 1)
+                {
+                    waypoints.push_back(initialPosition);
+                    waypoints.push_back(waypoint);
+                    waypoints.push_back(waypoint4);
+                }
+                else
+                {
+                    waypoints.push_back(initialPosition);
+                    // waypoints.push_back(waypoint2);
+                    // waypoints.push_back(waypoint3);
+                    waypoints.push_back(waypoint4);
+                }
 
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot (1: DARKBROWN, 2: DARKBLUE)

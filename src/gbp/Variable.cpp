@@ -85,14 +85,13 @@ void Variable::change_variable_prior(const Eigen::VectorXd &new_mu)
 {
     eta_prior_ = lam_prior_ * new_mu;
     mu_ = new_mu;
-    belief_ = Message{eta_prior_, lam_prior_, mu_}; // check this
+    belief_ = Message{eta_prior_, lam_prior_, mu_}; // reset belief for new position
     for (auto [fkey, fac] : factors_)
     {
         outbox_[fkey] = belief_;
         inbox_[fkey].setZero();
     }
 };
-
 /***********************************************************************************************************/
 // Add a factor to this variable's list of factors, and initialise an outgoing message of its belief.
 /***********************************************************************************************************/
