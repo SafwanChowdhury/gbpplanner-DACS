@@ -387,5 +387,9 @@ std::vector<int> Robot::getVariableTimesteps(int lookahead_horizon, int lookahea
 /*******************************************************************************************/
 std::tuple<double, double, double> Robot::getData() const
 {
+    if (rid_ == 1)
+    {
+        std::cout << "Robot 1: Acceleration: " << last_acceleration_ << ", Turn Angle: " << last_turn_angle_ << ", Next Speed: " << last_next_speed_ * 2.23694 << " mph" << std::endl;
+    }
     return std::make_tuple(last_acceleration_, last_turn_angle_, last_next_speed_);
 }

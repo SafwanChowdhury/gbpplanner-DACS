@@ -22,7 +22,7 @@
 #include <vector>
 #include <Eigen/Dense>
 #include "Radar.h"
-#include "WaypointSender.h"
+#include "PositionSender.h"
 
 class Robot;
 class Graphics;
@@ -139,7 +139,7 @@ public:
     }
 
     Radar radar;
-    WaypointSender waypoint_sender;
+    PositionSender position_sender;
 
     void updateRobotsFromRadar();
     std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> getIterationValues() const;

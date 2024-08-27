@@ -16,7 +16,7 @@
 // Raylib setup
 /*******************************************************************************/
 Simulator::Simulator(const std::vector<std::string> &radarIPs)
-    : radar(), waypoint_sender()
+    : radar(), position_sender()
 {
     SetTraceLogLevel(LOG_ERROR);
     if (globals.USE_RADAR)
@@ -33,10 +33,10 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     }
     else
     {
-        waypoint_sender.loadWaypoints();
-        // waypoint_sender.setRobotFailurePoint(1, 10); // Set failure points for specific robots if needed
+        position_sender.loadPositions();
+        // position_sender.setRobotFailurePoint(1, 10); // Set failure points for specific robots if needed
 
-        waypoint_sender.startSendingWaypoints();
+        position_sender.startSendingPositions();
     }
 
     if (globals.DISPLAY)
@@ -79,7 +79,7 @@ Simulator::~Simulator()
     }
     else
     {
-        waypoint_sender.stopSendingWaypoints();
+        position_sender.stopSendingPositions();
     }
 };
 
@@ -114,7 +114,7 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
     auto &robot = robotIt->second;
 
     // Check if the robot has failed
-    if (!waypoint_sender.isRobotFailed(robotIndex))
+    if (!position_sender.isRobotFailed(robotIndex))
     {
         // Update position only if the robot hasn't failed
         robot->position_ = Eigen::Vector4d(x, y, vx, vy);
@@ -176,7 +176,7 @@ void Simulator::updateRobotsFromRadar()
     }
     else
     {
-        auto positions = waypoint_sender.getLatestWaypoints();
+        auto positions = position_sender.getLatestPositions();
         for (const auto &[robot_id, _] : robots_)
         {
             auto it = positions.find(robot_id);
@@ -255,7 +255,6 @@ void Simulator::printRouteTimes()
 {
     if (!globals.USE_RADAR)
     {
-        std::cerr << "Radar is not being used in this simulation." << std::endl;
         return;
     }
 
@@ -462,7 +461,7 @@ void Simulator::timestep()
         }
     }
     auto iterationValues = getIterationValues();
-    sendIterationValues(iterationValues);
+    // sendIterationValues(iterationValues);
 
     // Increase simulation clock by one timestep
     clock_++;
@@ -787,18 +786,21 @@ void Simulator::createOrDeleteRobots()
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
-                if (i == 1)
-                {
-                    waypoints.push_back(initialPosition);
-                    waypoints.push_back(waypoint);
-                }
-                else
-                {
-                    waypoints.push_back(initialPosition);
-                    waypoints.push_back(waypoint2);
-                    waypoints.push_back(waypoint3);
-                    waypoints.push_back(waypoint4);
-                }
+                waypoints.push_back(initialPosition);
+                waypoints.push_back(waypoint4);
+
+                // if (i == 1)
+                // {
+                //     waypoints.push_back(initialPosition);
+                //     waypoints.push_back(waypoint);
+                // }
+                // else
+                // {
+                //     waypoints.push_back(initialPosition);
+                //     waypoints.push_back(waypoint2);
+                //     waypoints.push_back(waypoint3);
+                //     waypoints.push_back(waypoint4);
+                // }
 
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot (1: DARKBROWN, 2: DARKBLUE)
