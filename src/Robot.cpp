@@ -72,7 +72,19 @@ Robot::Robot(Simulator *sim,
         // T0 is the timestep between the current state and the first planned state.
         float delta_t = globals.T0 * (variable_timesteps[i + 1] - variable_timesteps[i]);
         std::vector<std::shared_ptr<Variable>> variables{getVar(i), getVar(i + 1)};
-        auto factor = std::make_shared<DynamicsFactor>(sim->next_fid_++, rid_, variables, globals.SIGMA_FACTOR_DYNAMICS, Eigen::VectorXd::Zero(globals.N_DOFS), delta_t);
+
+        // Get the current velocity from the first variable in the pair
+        Eigen::Vector2d current_velocity = getVar(i)->mu_.segment<2>(2);
+
+        // Create the DynamicsFactor with the current velocity
+        auto factor = std::make_shared<DynamicsFactor>(
+            sim->next_fid_++,
+            rid_,
+            variables,
+            globals.SIGMA_FACTOR_DYNAMICS,
+            Eigen::VectorXd::Zero(globals.N_DOFS),
+            delta_t,
+            current_velocity);
 
         // Add this factor to the variable's list of adjacent factors, as well as to the robot's list of factors
         for (auto var : factor->variables_)

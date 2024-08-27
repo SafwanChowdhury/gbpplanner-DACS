@@ -34,7 +34,7 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         waypoint_sender.loadWaypoints();
-        // waypoint_sender.setRobotFailurePoint(1, 30); // Set failure points for specific robots if needed
+        // waypoint_sender.setRobotFailurePoint(1, 10); // Set failure points for specific robots if needed
 
         waypoint_sender.startSendingWaypoints();
     }
@@ -176,14 +176,14 @@ void Simulator::updateRobotsFromRadar()
     }
     else
     {
-        auto waypoints = waypoint_sender.getLatestWaypoints();
+        auto positions = waypoint_sender.getLatestWaypoints();
         for (const auto &[robot_id, _] : robots_)
         {
-            auto it = waypoints.find(robot_id);
-            if (it != waypoints.end())
+            auto it = positions.find(robot_id);
+            if (it != positions.end())
             {
-                const auto &waypoint = it->second;
-                updateRobotPosition(robot_id, waypoint[0], waypoint[1], waypoint[2], waypoint[3]);
+                const auto &position = it->second;
+                updateRobotPosition(robot_id, position[0], position[1], position[2], position[3]);
             }
         }
     }
@@ -251,50 +251,6 @@ std::vector<std::tuple<double, double, double, double, double, double, double, s
     return values;
 }
 
-void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values)
-{
-    auto servers = radar.getServers();
-    size_t num_servers = servers.size();
-
-    if (num_servers == 0 || values.empty())
-    {
-        return;
-    }
-
-    // Get the latest radar data
-    auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
-
-    // Prepare data for all trucks using only radar data
-    nlohmann::json all_trucks_data;
-    for (const auto &[host_id, coord] : coordinates)
-    {
-        auto vel_it = velocities.find(host_id);
-        if (vel_it != velocities.end())
-        {
-            all_trucks_data.push_back({{"host_id", host_id},
-                                       {"position", {{"x", coord.x()}, {"y", coord.y()}}},
-                                       {"velocity", {{"x", vel_it->second.x()}, {"y", vel_it->second.y()}}},
-                                       {"robot_id", mapHostToRobot(host_id)}});
-        }
-    }
-
-    // Send data to each truck
-    for (size_t i = 0; i < num_servers && i < values.size(); ++i)
-    {
-        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
-        const auto &server = servers[i];
-
-        nlohmann::json json_data = {
-            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}}},
-            {"all_trucks_data", all_trucks_data}};
-
-        std::string json_string = json_data.dump() + "\n";
-
-        // Send the JSON data
-        radar.sendData(server, json_string);
-    }
-}
-
 void Simulator::printRouteTimes()
 {
     if (!globals.USE_RADAR)
@@ -329,6 +285,124 @@ void Simulator::printRouteTimes()
         {
             std::cerr << "No distance data available for truck " << host_id << std::endl;
         }
+    }
+}
+
+void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values)
+{
+    auto servers = radar.getServers();
+    size_t num_servers = servers.size();
+
+    if (num_servers == 0 || values.empty())
+    {
+        return;
+    }
+
+    // Get the latest radar data
+    auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
+
+    // Prepare data for all trucks using only radar data
+    nlohmann::json all_trucks_data;
+    for (const auto &[host_id, coord] : coordinates)
+    {
+        auto vel_it = velocities.find(host_id);
+        if (vel_it != velocities.end())
+        {
+            all_trucks_data.push_back({{"host_id", host_id},
+                                       {"position", {{"x", coord.x()}, {"y", coord.y()}}},
+                                       {"velocity", {{"x", vel_it->second.x()}, {"y", vel_it->second.y()}}},
+                                       {"robot_id", mapHostToRobot(host_id)}});
+        }
+    }
+
+    const double MERGE_DISTANCE = 40890.0;            // meters
+    const double MERGE_TIME = 1913.0;                 // seconds
+    const double TARGET_MERGE_SPEED = 60.0 * 0.44704; // 60 mph converted to m/s
+    const double FOLLOWER_TIME_GAP = 2.0;             // 2 seconds gap for the follower
+
+    // Set the leader's robot ID here
+    const int LEADER_RID = 2; // Change this to the desired leader's robot ID
+    std::string leader_host_id;
+    double leader_distance = 0;
+
+    // First pass: Identify the leader and its distance
+    for (size_t i = 0; i < num_servers && i < values.size(); ++i)
+    {
+        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
+        if (mapHostToRobot(host_id) == LEADER_RID)
+        {
+            leader_host_id = host_id;
+            leader_distance = routeDistances[host_id];
+            break;
+        }
+    }
+
+    // Second pass: Calculate and send data for each truck
+    for (size_t i = 0; i < num_servers && i < values.size(); ++i)
+    {
+        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
+        const auto &server = servers[i];
+
+        double current_distance = routeDistances[host_id];
+        double remaining_distance = MERGE_DISTANCE - current_distance;
+        double remaining_time = MERGE_TIME - routeTimes[host_id];
+
+        double current_speed = std::sqrt(vx * vx + vy * vy);
+        double required_speed_mps;
+
+        bool is_leader = (host_id == leader_host_id);
+
+        if (is_leader)
+        {
+            // Leader logic: aim to reach merge point at 60 mph
+            if (remaining_distance > 0 && remaining_time > 0)
+            {
+                double t = current_distance / MERGE_DISTANCE;
+                required_speed_mps = current_speed * (1 - t) + TARGET_MERGE_SPEED * t;
+
+                double estimated_arrival_time = remaining_distance / required_speed_mps;
+                if (estimated_arrival_time > remaining_time)
+                {
+                    required_speed_mps = remaining_distance / remaining_time;
+                }
+            }
+            else
+            {
+                required_speed_mps = TARGET_MERGE_SPEED;
+            }
+        }
+        else
+        {
+            // Follower logic: adjust speed to arrive FOLLOWER_TIME_GAP seconds after the leader
+            double leader_remaining_distance = MERGE_DISTANCE - leader_distance;
+            double time_to_match = remaining_time - FOLLOWER_TIME_GAP;
+            if (time_to_match > 0)
+            {
+                required_speed_mps = remaining_distance / time_to_match;
+            }
+            else
+            {
+                required_speed_mps = current_speed; // Maintain current speed if we can't calculate
+            }
+        }
+
+        double required_speed_mph = required_speed_mps * 2.23694;
+
+        nlohmann::json json_data = {
+            {"iteration_data", {
+                                   {"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", true} // Always true now
+                               }},
+            {"all_trucks_data", all_trucks_data}};
+
+        std::string json_string = json_data.dump() + "\n";
+        radar.sendData(server, json_string);
+
+        // Add this truck's data to all_trucks_data for the next iteration
+        all_trucks_data.push_back({{"host_id", host_id},
+                                   {"position", {{"x", x}, {"y", y}}},
+                                   {"velocity", {{"x", vx}, {"y", vy}}},
+                                   {"is_leader", is_leader},
+                                   {"required_speed_mph", required_speed_mph}});
     }
 }
 
