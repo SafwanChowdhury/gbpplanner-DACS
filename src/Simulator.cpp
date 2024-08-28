@@ -462,7 +462,10 @@ void Simulator::timestep()
         }
     }
     auto iterationValues = getIterationValues();
-    // sendIterationValues(iterationValues);
+    if (globals.USE_RADAR)
+    {
+        sendIterationValues(iterationValues);
+    }
 
     // Increase simulation clock by one timestep
     clock_++;

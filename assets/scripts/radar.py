@@ -12,14 +12,12 @@ zoom_level = 1
 update_interval = 100  # Update interval in milliseconds
 save_interval = 1000  # Save interval in milliseconds (1 second)
 zero_point_set = False
-canvas_size = 1000  # GBPPlanner world size
-zoom_factor = 3.44  # new_image/old_image = 1000/688 = 1.453   old_scaling/new_scaling = 5/1.453 = 3.44
 is_recording = False
 recorded_waypoints = []
 
 # List of truck URLs
 truck_urls = [
-    'http://192.168.1.49:39847',
+    'http://192.168.1.86:39847',
     # Add more URLs here as needed
 ]
 
@@ -77,11 +75,11 @@ def update_data():
         if data:
             truck_data.append(data)
             last_known_data[i] = data
-            
+
             # Record waypoint if recording is active
             if is_recording and zero_point_set:
-                x = (data['coordinateX'] - zero_point['coordinateX']) * 10 / zoom_factor
-                y = (data['coordinateZ'] - zero_point['coordinateZ']) * 10 / zoom_factor
+                x = data['coordinateX'] - zero_point['coordinateX']
+                y = data['coordinateZ'] - zero_point['coordinateZ']
                 rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
                 recorded_waypoints.append({
                     'robot': i+1,
@@ -99,11 +97,11 @@ def update_data():
                 'velocityX': 0,
                 'velocityZ': 0
             })
-    
+
     if truck_data:
         update_ui(truck_data)
         update_radar(truck_data)
-        
+
         # Save coordinates of all robots if zero point has been set
         if zero_point_set:
             save_robot_coordinates(truck_data)
@@ -128,19 +126,19 @@ def update_ui(truck_data):
 def update_radar(truck_data):
     radar_canvas.delete("all")
     radar_canvas.create_oval(250-5, 250-5, 250+5, 250+5, fill="green")  # Center point
-    
+
     colors = ["red", "blue", "yellow", "purple", "orange"]  # Add more colors if needed
-    
+
     for i, data in enumerate(truck_data):
         x = (data['coordinateX'] - zero_point['coordinateX']) * zoom_level
         z = (data['coordinateZ'] - zero_point['coordinateZ']) * zoom_level
-        
+
         # Applying rotation (90 degrees clockwise)
         x_rotated, z_rotated = rotate_90_degrees_clockwise(x, z)
 
         color = colors[i % len(colors)]
         radar_canvas.create_oval(250+x_rotated-5, 250+z_rotated-5, 250+x_rotated+5, 250+z_rotated+5, fill=color)
-        
+
         # Draw velocity vector
         vx = data['velocityX'] * zoom_level * 10  # Scale velocity for visibility
         vz = data['velocityZ'] * zoom_level * 10
@@ -168,18 +166,18 @@ def save_robot_coordinates(truck_data):
         os.chdir("../../build")  # Change to the correct directory
         with open("robot_coordinates.txt", "w") as f:
             for i, data in enumerate(truck_data):
-                x = (data['coordinateX'] - zero_point['coordinateX']) * 10 / zoom_factor
-                y = (data['coordinateZ'] - zero_point['coordinateZ']) * 10 / zoom_factor
-                
+                x = data['coordinateX'] - zero_point['coordinateX']
+                y = data['coordinateZ'] - zero_point['coordinateZ']
+
                 rotated_x, rotated_y = rotate_90_degrees_clockwise(x, y)
-                
+
                 rotated_x = round(rotated_x, 2)
                 rotated_y = round(rotated_y, 2)
                 vx = round(data['velocityX'], 2)
                 vz = round(data['velocityZ'], 2)
-                
+
                 f.write(f"{i+1} {rotated_x} {rotated_y} {vx} {vz}\n")
-        print(f"Saved scaled and rotated coordinates and velocities for {len(truck_data)} robots")
+        print(f"Saved rotated coordinates and velocities for {len(truck_data)} robots")
     except Exception as e:
         print(f"Error saving coordinates: {e}")
     finally:
