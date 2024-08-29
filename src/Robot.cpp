@@ -218,10 +218,13 @@ void Robot::updateWaypoints()
 
     double distance = (current_position - next_waypoint).norm();
 
-    if (distance < globals.WAYPOINT_RADIUS)
+    if (distance < globals.WAYPOINT_RADIUS && waypoints_.size() > 1)
     {
         waypoints_.erase(waypoints_.begin() + 1);
-        std::cout << "Robot " << rid_ << " reached waypoint. Remaining waypoints: " << waypoints_.size() - 1 << std::endl;
+    }
+    if (override_cruise_control_ == true && waypoints_.size() - 1 == 0)
+    {
+        override_cruise_control_ = false;
     }
 }
 

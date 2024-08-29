@@ -267,7 +267,6 @@ void Simulator::printRouteTimes()
     // Get the latest radar data
     auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
 
-    std::cout << "Required Speeds (in mph):" << std::endl;
     for (const auto &[host_id, route_time] : routeTimes)
     {
         // Check if distance information is available
@@ -283,8 +282,8 @@ void Simulator::printRouteTimes()
             // Convert the required speed from meters per second to miles per hour
             double required_speed_mph = required_speed_mps * 2.23694;
 
-            // std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
-            //           << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
+            std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
+                      << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
         }
         else
         {
@@ -398,7 +397,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         double required_speed_mph = required_speed_mps * 2.23694;
 
         nlohmann::json json_data = {
-            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}}},
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed * 2.23694}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}}},
             {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";
