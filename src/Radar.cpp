@@ -333,13 +333,9 @@ void Radar::processCoordinates(const std::string &server_id, double originalX, d
     double relativeX = originalX - zero_point.x();
     double relativeZ = originalZ - zero_point.y();
 
-    // Apply zoom to relative coordinates
-    double scaledX = relativeX * 10 / zoom_factor;
-    double scaledZ = relativeZ * 10 / zoom_factor;
-
     // Rotate 90 degrees clockwise
-    double rotatedX = scaledZ;
-    double rotatedY = -scaledX;
+    double rotatedX = relativeZ;
+    double rotatedY = -relativeX;
 
     // Store the processed coordinates
     latest_coordinates[server_id] = Eigen::Vector2d(rotatedX, rotatedY);

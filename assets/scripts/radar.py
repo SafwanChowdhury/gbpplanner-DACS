@@ -103,7 +103,7 @@ def update_data():
         update_radar(truck_data)
 
         # Save coordinates of all robots if zero point has been set
-        if zero_point_set:
+        if zero_point_set and is_recording:
             save_robot_coordinates(truck_data)
 
     root.after(update_interval, update_data)

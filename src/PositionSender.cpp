@@ -128,7 +128,7 @@ void PositionSender::sendPositionsThread()
             sending_positions = false;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(150)); // 10 Hz // 30 fps = 33ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(33)); // 10 Hz // 30 fps = 33ms
     }
 }
 

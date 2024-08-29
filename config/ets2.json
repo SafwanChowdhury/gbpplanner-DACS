@@ -4,11 +4,11 @@
   
   "#": "Display parameters",
   "DISPLAY": 1,
-  "WORLD_SZ": 1000,
-  "SCREEN_SZ": 1000,
+  "WORLD_SZ": 500,
+  "SCREEN_SZ": 900,
   "DRAW_INTERROBOT": 0,
   "DRAW_PATH": 1,
-  "DRAW_WAYPOINTS": 1,
+  "DRAW_WAYPOINTS": 0,
   
   "##": "Simulation parameters",
   "SEED": 2,
@@ -21,14 +21,14 @@
   "MAX_SPEED": 26.8224,
   "COMMS_FAILURE_RATE": 0,
   "FORMATION": "ets2",
-  "OBSTACLE_FILE": "../assets/imgs/ets2.png",
+  "OBSTACLE_FILE": "../assets/imgs/ets4.png",
 
   "###": "GBP parameters",
   "SIGMA_FACTOR_DYNAMICS": 0.1,
   "SIGMA_FACTOR_INTERROBOT": 0.01,
   "SIGMA_FACTOR_OBSTACLE": 0.001,
   "NUM_ITERS": 20,
-  "USE_RADAR": false,
+  "USE_RADAR": true,
   "WAYPOINT_RADIUS": 10
 
 }

@@ -118,6 +118,10 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
     {
         // Update position only if the robot hasn't failed
         robot->position_ = Eigen::Vector4d(x, y, vx, vy);
+        // if (robot->rid_ == 1)
+        // {
+        //     std::cout << "Robot 1 position: " << robot->position_.transpose() << " Robot 1 Velocity: " << vx * -2.23694 << " " << vy << std::endl;
+        // }
     }
 
     if (robotIndex == 1 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
@@ -278,8 +282,8 @@ void Simulator::printRouteTimes()
             // Convert the required speed from meters per second to miles per hour
             double required_speed_mph = required_speed_mps * 2.23694;
 
-            std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
-                      << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
+            // std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
+            //           << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
         }
         else
         {
@@ -417,7 +421,7 @@ void Simulator::timestep()
 
     updateRobotsFromRadar(); // Update the robots' positions from the radar
 
-    printRouteTimes();
+    // printRouteTimes();
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
@@ -777,16 +781,16 @@ void Simulator::createOrDeleteRobots()
                 initialPosition << 0., 0., 0., 0.;
 
                 Eigen::VectorXd waypoint(4);
-                waypoint << 150., -2., 0., 0.;
+                waypoint << 100., 0., 0., 0.;
 
                 Eigen::VectorXd waypoint2(4);
-                waypoint2 << 150., 10., 0., 0.;
+                waypoint2 << 100., 15., 0., 0.;
 
                 Eigen::VectorXd waypoint3(4);
-                waypoint3 << -250., -50., 0., 0.;
+                waypoint3 << -125., -30., 0., 0.;
 
                 Eigen::VectorXd waypoint4(4);
-                waypoint4 << -500., -190., 0., 0.;
+                waypoint4 << -250., -175., 0., 0.;
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
