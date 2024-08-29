@@ -135,6 +135,7 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
             // robot->waypoints_.pop_back(); // Remove the merge point waypoint
             robot->waypoints_.erase(robot->waypoints_.begin() + 1);
             robot->has_merged_ = true; // Set a flag to indicate that Robot 1 has merged
+            robot->override_cruise_control_ = true;
         }
     }
 
@@ -347,6 +348,10 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
         const auto &server = servers[i];
 
+        int robot_id = mapHostToRobot(host_id);
+        auto robot_it = robots_.find(robot_id);
+        bool robot_override_cruise_control = (robot_it != robots_.end()) ? robot_it->second->override_cruise_control_ : false;
+
         double current_distance = routeDistances[host_id];
         double remaining_distance = MERGE_DISTANCE - current_distance;
         double remaining_time = MERGE_TIME - routeTimes[host_id];
@@ -393,9 +398,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         double required_speed_mph = required_speed_mps * 2.23694;
 
         nlohmann::json json_data = {
-            {"iteration_data", {
-                                   {"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", true} // Always true now
-                               }},
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}}},
             {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";

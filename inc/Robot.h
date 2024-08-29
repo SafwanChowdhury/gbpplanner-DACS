@@ -41,6 +41,7 @@ public:
     float robot_radius_ = 1.;                 // Robot radius
     Color color_ = DARKGREEN;                 // Colour of robot
     bool has_merged_ = false;
+    bool override_cruise_control_ = false;
 
     int num_variables_;                  // Number of variables in the planned path (assumed to be the same for all robots)
     std::vector<int> connected_r_ids_{}; // List of robot ids that are currently connected via inter-robot factors to this robot

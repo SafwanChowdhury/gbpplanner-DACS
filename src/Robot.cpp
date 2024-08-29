@@ -33,6 +33,7 @@ Robot::Robot(Simulator *sim,
     waypoints_.pop_front();
     auto goal = (waypoints_.size() > 0) ? waypoints_[0] : start;
     has_merged_ = false;
+    override_cruise_control_ = false;
 
     // Initialise the horzion in the direction of the goal, at a distance T_HORIZON * MAX_SPEED from the start.
     Eigen::VectorXd start2goal = goal - start;
