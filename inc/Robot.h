@@ -94,4 +94,9 @@ public:
         std::advance(it, search_vid);
         return it->second;
     }
+
+    double safe_zone_radius_;
+    int safe_zone_violations_;
+
+    bool checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &robots);
 };

@@ -40,6 +40,7 @@ Simulator::Simulator()
 /*******************************************************************************/
 Simulator::~Simulator()
 {
+    exportSafeZoneData();
     delete treeOfRobots_;
     int n = robots_.size();
     for (int i = 0; i < n; ++i)
@@ -242,6 +243,17 @@ void Simulator::timestep()
         robot->updateHorizon();
         robot->updateCurrent();
     }
+
+    // Tests for safe zone violations
+    SafeZoneViolationData data;
+    data.timestamp = clock_;
+
+    for (const auto &[rid, robot] : robots_)
+    {
+        data.violations.push_back(robot->checkSafeZoneViolation(robots_) ? 1 : 0);
+    }
+
+    safe_zone_data_.push_back(data);
 
     // Increase simulation clock by one timestep
     clock_++;
@@ -1655,17 +1667,12 @@ void Simulator::createOrDeleteRobots()
                 int follower_id = next_rid_;
                 next_rid_++;
 
-                =
-                    float robot_radius = globals.ROBOT_RADIUS;
+                float robot_radius = globals.ROBOT_RADIUS;
                 Color master_color = DARKGREEN;
                 robots_to_create.push_back(std::make_shared<Robot>(this, master_id, waypoints_master, robot_radius, master_color, true, -1, group));
 
-                // Create a follower robot
-                Eigen::VectorXd follower_start(4);
-                follower_start << (radius_circle + additional_radius) * cos(angle), (radius_circle + additional_radius) * sin(angle), globals.MAX_SPEED, 0.0;
-                std::deque<Eigen::VectorXd> waypoints_follower{follower_start, follower_start}; // Start and end at the same point
                 Color follower_color = DARKBLUE;
-                robots_to_create.push_back(std::make_shared<Robot>(this, follower_id, waypoints_slave, robot_radius, follower_color, false, master_id, group)); // The follower follows the master
+                robots_to_create.push_back(std::make_shared<Robot>(this, follower_id, waypoints_slave, robot_radius, follower_color, false, master_id, group));
             }
         }
 
@@ -1674,8 +1681,8 @@ void Simulator::createOrDeleteRobots()
         {
             for (int group = 0; group < globals.NUM_ROBOTS / 2; ++group)
             {
-                int master_index = group * 2;          // Master index
-                int follower_index = master_index + 1; // Follower index
+                int master_index = group * 2;
+                int follower_index = master_index + 1;
                 auto master = robots_.at(master_index);
                 auto follower = robots_.at(follower_index);
 
@@ -1715,4 +1722,62 @@ void Simulator::deleteRobot(std::shared_ptr<Robot> robot)
     }
     robots_.erase(robot->rid_);
     robot_positions_.erase(robot->rid_);
+}
+
+/*******************************************************************************/
+// Testing functions
+/*******************************************************************************/
+
+void Simulator::exportSafeZoneData() const
+{
+    static const char *SAFE_ZONE_DATA_FILENAME = "safe_zone_violations.csv";
+
+    if (safe_zone_data_.empty())
+    {
+        std::cout << "No safe zone violation data to export." << std::endl;
+        return;
+    }
+
+    std::ofstream file(SAFE_ZONE_DATA_FILENAME, std::ios::out | std::ios::trunc);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to create or open file: " << SAFE_ZONE_DATA_FILENAME << std::endl;
+        std::cerr << "Error: " << std::strerror(errno) << std::endl;
+        return;
+    }
+
+    try
+    {
+        // Write header
+        file << "Timestamp";
+        for (size_t i = 0; i < safe_zone_data_[0].violations.size(); ++i)
+        {
+            file << ",Robot" << i;
+        }
+        file << "\n";
+
+        // Write data
+        for (const auto &data : safe_zone_data_)
+        {
+            file << data.timestamp;
+            for (int violation : data.violations)
+            {
+                file << "," << violation;
+            }
+            file << "\n";
+        }
+
+        if (file.fail())
+        {
+            throw std::runtime_error("Failed to write data to file");
+        }
+
+        std::cout << "Safe zone violation data exported to " << SAFE_ZONE_DATA_FILENAME << std::endl;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error while writing to file: " << e.what() << std::endl;
+    }
+
+    file.close();
 }

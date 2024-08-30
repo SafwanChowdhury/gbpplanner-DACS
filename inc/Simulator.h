@@ -119,4 +119,14 @@ public:
     {
         return std::uniform_int_distribution<int>(lower, upper)(gen_uniform_int);
     }
+
+private:
+    struct SafeZoneViolationData
+    {
+        int timestamp;
+        std::vector<int> violations;
+    };
+    std::vector<SafeZoneViolationData> safe_zone_data_;
+
+    void exportSafeZoneData() const;
 };

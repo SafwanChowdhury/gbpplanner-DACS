@@ -22,7 +22,13 @@ Robot::Robot(Simulator *sim,
              int group_id) : FactorGraph{sim->next_rid_},
                              sim_(sim), rid_(rid),
                              waypoints_(waypoints),
-                             robot_radius_(size), color_(color), isMaster_(isMaster), master_id_(master_id)
+                             robot_radius_(size),
+                             color_(color),
+                             isMaster_(isMaster),
+                             master_id_(master_id),
+                             group_id_(group_id),
+                             safe_zone_radius_(robot_radius_ * 1),
+                             safe_zone_violations_(0)
 {
 
     height_3D_ = robot_radius_; // Height out of plane for 3d visualisation only
@@ -393,4 +399,23 @@ void Robot::createMasterSlaveFactors()
             var->add_factor(factor);
         this->factors_[factor->key_] = factor;
     }
+}
+
+/***************************************************************************************************/
+// Testing function to check if robots enter each other's safe zones
+/***************************************************************************************************/
+bool Robot::checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &robots)
+{
+    for (const auto &[rid, other_robot] : robots)
+    {
+        if (rid == this->rid_)
+            continue;
+
+        double distance = (this->position_ - other_robot->position_).head<2>().norm();
+        if (distance < this->safe_zone_radius_ + other_robot->safe_zone_radius_)
+        {
+            return true;
+        }
+    }
+    return false;
 }
