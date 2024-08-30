@@ -18,10 +18,11 @@ Robot::Robot(Simulator *sim,
              float size,
              Color color,
              bool isMaster,
-             int master_id) : FactorGraph{sim->next_rid_},
-                              sim_(sim), rid_(rid),
-                              waypoints_(waypoints),
-                              robot_radius_(size), color_(color), isMaster_(isMaster), master_id_(master_id)
+             int master_id,
+             int group_id) : FactorGraph{sim->next_rid_},
+                             sim_(sim), rid_(rid),
+                             waypoints_(waypoints),
+                             robot_radius_(size), color_(color), isMaster_(isMaster), master_id_(master_id)
 {
 
     height_3D_ = robot_radius_; // Height out of plane for 3d visualisation only
@@ -126,21 +127,21 @@ void Robot::updateCurrent()
     double current_heading = std::atan2(current_velocity.y(), current_velocity.x());
 
     // print the increment vector for robot id 5
-    if (rid_ == 5)
-    {
-        // Print the data in a readable format
-        std::cout << "Robot 5 Data:" << std::endl;
-        std::cout << "  Increment:" << std::endl;
-        std::cout << "    Position change (x, y): (" << increment[0] << ", " << increment[1] << ")" << std::endl;
-        std::cout << "    Velocity change (dx/dt, dy/dt): (" << increment[2] << ", " << increment[3] << ")" << std::endl;
-        std::cout << "  Derived data:" << std::endl;
-        std::cout << "    Current speed: " << current_speed << std::endl;
-        std::cout << "    Next speed: " << next_speed << std::endl;
-        std::cout << "    Forward acceleration: " << forward_acceleration << std::endl;
-        std::cout << "    Current heading (degrees): " << current_heading * 180 / M_PI << std::endl;
-        std::cout << "    Turn angle (degrees): " << turn_angle * 180 / M_PI << std::endl;
-        std::cout << std::endl;
-    }
+    // if (rid_ == 5)
+    // {
+    //    // Print the data in a readable format
+    //     std::cout << "Robot 5 Data:" << std::endl;
+    //     std::cout << "  Increment:" << std::endl;
+    //     std::cout << "    Position change (x, y): (" << increment[0] << ", " << increment[1] << ")" << std::endl;
+    //     std::cout << "    Velocity change (dx/dt, dy/dt): (" << increment[2] << ", " << increment[3] << ")" << std::endl;
+    //     std::cout << "  Derived data:" << std::endl;
+    //     std::cout << "    Current speed: " << current_speed << std::endl;
+    //     std::cout << "    Next speed: " << next_speed << std::endl;
+    //     std::cout << "    Forward acceleration: " << forward_acceleration << std::endl;
+    //     std::cout << "    Current heading (degrees): " << current_heading * 180 / M_PI << std::endl;
+    //     std::cout << "    Turn angle (degrees): " << turn_angle * 180 / M_PI << std::endl;
+    //     std::cout << std::endl;
+    // }
     // In GBP we do this by modifying the prior on the variable
     getVar(0)->change_variable_prior(getVar(0)->mu_ + increment);
     // Real pose update

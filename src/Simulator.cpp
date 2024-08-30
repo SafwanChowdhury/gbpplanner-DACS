@@ -496,7 +496,7 @@ void Simulator::createOrDeleteRobots()
             Color robot_color = isMaster ? DARKBROWN : DARKBLUE;
             int master_id = isMaster ? next_rid_ : next_rid_ - 1; // for example, each slave has the previous robot as master
 
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id, -1));
         }
         // print to termimal for each robot its data
         for (auto robot : robots_to_create)
@@ -540,12 +540,12 @@ void Simulator::createOrDeleteRobots()
             bool isMaster = true;
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id, -1));
 
             // Create slave robot
             isMaster = false;
             Color robot_color_slave = DARKBLUE;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id, -1));
         }
 
         // Delete robots if out of bounds
@@ -599,12 +599,12 @@ void Simulator::createOrDeleteRobots()
             bool isMaster = true;
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id, -1));
 
             // Create slave robot
             isMaster = false;
             Color robot_color_slave = DARKBLUE;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id, -1));
         }
 
         // Delete robots if out of bounds
@@ -719,13 +719,13 @@ void Simulator::createOrDeleteRobots()
             bool isMaster = true;
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id, -1));
 
             // Create slave robot
             isMaster = false;
             Color robot_color_slave = DARKBLUE;
             master_id = next_rid_ - 1;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_slave, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_slave, isMaster, master_id, -1));
         }
 
         // Delete robots if out of bounds
@@ -760,7 +760,7 @@ void Simulator::createOrDeleteRobots()
             waypoints.push_back(ending);
             float robot_radius = globals.ROBOT_RADIUS;
             Color robot_color = DARKGREEN;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1, 1));
 
             leader_init_ = true;
 
@@ -783,7 +783,7 @@ void Simulator::createOrDeleteRobots()
                 // Define robot radius and colour here.
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color robot_color = ColorFromHSV(i * 360. / globals.NUM_ROBOTS, 1., 0.75);
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1));
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1, 1));
             }
         }
 
@@ -887,12 +887,12 @@ void Simulator::createOrDeleteRobots()
             bool isMaster = true;
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id, -1));
 
             // Create slave robot
             isMaster = false;
             Color robot_color_slave = DARKBLUE;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_slave, robot_radius, robot_color_slave, isMaster, master_id, -1));
         }
 
         // Delete robots if out of bounds
@@ -1008,7 +1008,7 @@ void Simulator::createOrDeleteRobots()
                 Color leader_color = (group < 2) ? (group == 0 ? DARKGREEN : RED) : (group == 2 ? BLUE : YELLOW);
 
                 // Create the leader robot for each group
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1, group));
 
                 // Create follower robots
                 for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
@@ -1041,7 +1041,7 @@ void Simulator::createOrDeleteRobots()
                     // Define robot radius and colour
                     float follower_radius = globals.ROBOT_RADIUS;
                     Color follower_color = ColorFromHSV(i * 360.0 / globals.NUM_ROBOTS, 1.0, 0.75);
-                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, follower_radius, follower_color, true, -1));
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, follower_radius, follower_color, true, -1, group));
                 }
             }
         }
@@ -1149,7 +1149,7 @@ void Simulator::createOrDeleteRobots()
                     break;
                 }
                 // Create the leader robot for each group
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1, group));
 
                 // Create follower robots
                 for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
@@ -1181,7 +1181,7 @@ void Simulator::createOrDeleteRobots()
                     if (next_rid_ == 5)
                         follower_color = YELLOW;
                     // Create the follower robot with distinct color
-                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1));
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1, group));
                 }
             }
         }
@@ -1314,7 +1314,7 @@ void Simulator::createOrDeleteRobots()
                     break;
                 }
                 // Create the leader robot for each group
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1));
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1, group));
 
                 // Create follower robots
                 for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create follower robots
@@ -1346,7 +1346,7 @@ void Simulator::createOrDeleteRobots()
                     if (next_rid_ == 5)
                         follower_color = YELLOW;
                     // Create the follower robot with distinct color
-                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1));
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, true, -1, group));
                 }
             }
         }
@@ -1384,7 +1384,7 @@ void Simulator::createOrDeleteRobots()
                     // Define solo agent radius and color
                     float solo_robot_radius = globals.ROBOT_RADIUS;
                     Color solo_color = BLACK;
-                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1));
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1, -1));
                 }
                 // Delete robots if out of bounds
                 for (auto [rid, robot] : robots_)
@@ -1439,6 +1439,415 @@ void Simulator::createOrDeleteRobots()
                 auto new_leader = robots_.at(11); // Robot 11
                 Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
                 follower->waypoints_[0] = new_leader->position_ - offset_from_target;
+            }
+        }
+    }
+    else if (globals.FORMATION == "circle-follow-leader")
+    {
+        new_robots_needed_ = true;
+        float min_circumference_spacing = 5. * globals.ROBOT_RADIUS;
+        double min_radius = 0.25 * globals.WORLD_SZ;
+        double additional_radius = 5.0; // Define how much bigger the radius for odd robots should be
+        Eigen::VectorXd centre{{0., 0., 0., 0.}};
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
+        {
+            int num_groups = globals.NUM_ROBOTS / 2;
+            for (int group = 0; group < num_groups; ++group)
+            {
+                // Calculate positions for leader and follower
+                float radius_circle = std::max(min_radius, sqrt(min_circumference_spacing / (2. - 2. * cos(2. * PI / (double)num_groups))));
+
+                Eigen::VectorXd offset_from_centre_inner = Eigen::VectorXd{{radius_circle * cos(2. * PI * group / (float)num_groups)},
+                                                                           {radius_circle * sin(2. * PI * group / (float)num_groups)},
+                                                                           {0.},
+                                                                           {0.}};
+
+                Eigen::VectorXd offset_from_centre_outer = Eigen::VectorXd{{(radius_circle + additional_radius) * cos(2. * PI * group / (float)num_groups)},
+                                                                           {(radius_circle + additional_radius) * sin(2. * PI * group / (float)num_groups)},
+                                                                           {0.},
+                                                                           {0.}};
+
+                Eigen::VectorXd leader_start = centre + offset_from_centre_inner;
+                Eigen::VectorXd leader_end = centre - offset_from_centre_outer;
+                // Create leader robot
+                std::deque<Eigen::VectorXd> waypoints_leader{leader_start, leader_end};
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color leader_color = DARKGREEN;
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1, group));
+                // Create follower robot
+                Eigen::VectorXd follower_start = centre + offset_from_centre_outer;
+                std::deque<Eigen::VectorXd> waypoints_follower{follower_start, follower_start};
+                Color follower_color = BLUE;
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_follower, robot_radius, follower_color, true, -1, group));
+            }
+        }
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow their respective leaders
+            for (int group = 0; group < globals.NUM_ROBOTS / 2; ++group)
+            {
+                int leader_index = group * 2;
+                int follower_index = leader_index + 1;
+                auto leader = robots_.at(leader_index);
+                auto follower = robots_.at(follower_index);
+
+                // Set the follower's waypoint to the leader's current position
+                follower->waypoints_[0] = leader->position_;
+            }
+        }
+    }
+    else if (globals.FORMATION == "masterSlaveFollowerLeader")
+    {
+        new_robots_needed_ = true;
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
+        {
+            float min_circumference_spacing = 5. * globals.ROBOT_RADIUS;
+            double min_radius = 0.25 * globals.WORLD_SZ;
+            double additional_radius = 5.0; // Define how much bigger the radius for odd robots should be
+            Eigen::VectorXd centre{{0., 0., 0., 0.}};
+            int num_groups = globals.NUM_ROBOTS / 2; // Each group has a master and a follower
+
+            for (int group = 0; group < num_groups; group++)
+            {
+                // Calculate the radius for the current group
+                float radius_circle = (globals.NUM_ROBOTS == 1) ? min_radius : std::max(min_radius, sqrt(min_circumference_spacing / (2. - 2. * cos(2. * PI / (double)globals.NUM_ROBOTS))));
+
+                // Calculate the angle for the group
+                float angle = group * (2 * M_PI / num_groups);
+
+                // Assign unique IDs before creating the robots
+                int master_id = next_rid_;
+                next_rid_++;
+                int follower_id = next_rid_;
+                next_rid_++;
+
+                // Create a master robot
+                Eigen::VectorXd master_start(4);
+                master_start << radius_circle * cos(angle), radius_circle * sin(angle), globals.MAX_SPEED, 0.0;
+
+                // Define a target position for the master on the opposite side of the circle
+                Eigen::VectorXd master_target(4);
+                master_target << radius_circle * cos(angle + M_PI), radius_circle * sin(angle + M_PI), globals.MAX_SPEED, 0.0;
+
+                std::deque<Eigen::VectorXd> waypoints_master{master_start, master_target}; // Start at initial position, move to opposite side
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color master_color = DARKGREEN;
+                robots_to_create.push_back(std::make_shared<Robot>(this, master_id, waypoints_master, robot_radius, master_color, true, -1, group));
+
+                // Create a follower robot
+                Eigen::VectorXd follower_start(4);
+                follower_start << (radius_circle + additional_radius) * cos(angle), (radius_circle + additional_radius) * sin(angle), globals.MAX_SPEED, 0.0;
+                std::deque<Eigen::VectorXd> waypoints_follower{follower_start, follower_start}; // Start and end at the same point
+                Color follower_color = DARKBLUE;
+                robots_to_create.push_back(std::make_shared<Robot>(this, follower_id, waypoints_follower, robot_radius, follower_color, false, master_id, group)); // The follower follows the master
+            }
+        }
+
+        // Update the followers to follow their respective masters
+        if (!robots_.empty())
+        {
+            for (int group = 0; group < globals.NUM_ROBOTS / 2; ++group)
+            {
+                int master_index = group * 2;          // Master index
+                int follower_index = master_index + 1; // Follower index
+                auto master = robots_.at(master_index);
+                auto follower = robots_.at(follower_index);
+
+                // Set the follower's waypoint to the master's current position
+                follower->waypoints_[0] = master->position_;
+            }
+        }
+    }
+    else if (globals.FORMATION == "highway-combined")
+    {
+        auto highwayWaypoints = calculateHighwayWaypoints();
+
+        new_robots_needed_ = true;
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < 4 * globals.NUM_ROBOTS + 4) // Create 1 leader + globals.NUM_ROBOTS followers per group for 4 groups
+        {
+            for (int group = 0; group < 4; ++group)
+            {
+                bool travel_on_highway = (group == 2 || group == 3);
+                int lane = random_int(0, 2 - 1);
+                bool flip_ramps = (group == 1);
+
+                auto waypoints = highwayWaypoints[group][lane];
+                auto &selected_waypoints = flip_ramps ? waypoints.second : waypoints.first;
+
+                std::deque<Eigen::VectorXd> waypoints_leader;
+
+                if (travel_on_highway)
+                {
+                    if (group == 2) // Left to right on road 0
+                    {
+                        waypoints_leader.push_back(selected_waypoints.lane_start);
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        selected_waypoints = highwayWaypoints[2][0].first;
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_start);
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_merge);
+                    }
+                    else if (group == 3) // Right to left on road 1
+                    {
+                        selected_waypoints = highwayWaypoints[3][1].second;
+                        waypoints_leader.push_back(selected_waypoints.lane_end);
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_start);
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        selected_waypoints = highwayWaypoints[3][0].second;
+                        waypoints_leader.push_back(selected_waypoints.lane_start);
+                    }
+                }
+                else
+                {
+                    if (!flip_ramps)
+                    {
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_start);
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_start);
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_merge);
+                    }
+                    else
+                    {
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_merge);
+                        waypoints_leader.push_back(selected_waypoints.off_ramp_start);
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
+                        waypoints_leader.push_back(selected_waypoints.on_ramp_start);
+                    }
+                }
+
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color leader_color;
+                Color follower_color;
+
+                // Assign distinct colors to each group
+                switch (group)
+                {
+                case 0:
+                    leader_color = GREEN;
+                    follower_color = GREEN;
+                    break;
+                case 1:
+                    leader_color = MAGENTA;
+                    follower_color = MAGENTA;
+                    break;
+                case 2:
+                    leader_color = BLUE;
+                    follower_color = BLUE;
+                    break;
+                case 3:
+                    leader_color = RED;
+                    follower_color = RED;
+                    break;
+                }
+
+                // Create the leader robot for each group
+                int leader_id = next_rid_++;
+                robots_to_create.push_back(std::make_shared<Robot>(this, leader_id, waypoints_leader, robot_radius, leader_color, true, -1, group));
+
+                // Create follower robots
+                int last_robot_id = leader_id; // Initially, the last robot is the leader
+                for (int i = 1; i <= globals.NUM_ROBOTS; i++)
+                {
+                    Eigen::VectorXd starting_position;
+                    if (travel_on_highway)
+                    {
+                        starting_position = (group == 2) ? selected_waypoints.lane_start : selected_waypoints.lane_end;
+                    }
+                    else
+                    {
+                        starting_position = (!flip_ramps) ? selected_waypoints.on_ramp_start : selected_waypoints.off_ramp_merge;
+                    }
+
+                    std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
+
+                    // Create the follower robot, which follows the last created robot
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, follower_color, false, last_robot_id, group));
+                    last_robot_id = next_rid_ - 1; // Update the last robot to the current one
+                }
+            }
+        }
+
+        if (globals.ROGUE_AGENTS)
+        {
+            // Generate solo agents every few frames
+            if (clock_ % 20 == 0) // Adjust the frequency as needed
+            {
+                int num_solo_agents = 1; // Number of solo agents to create
+                for (int i = 0; i < num_solo_agents; ++i)
+                {
+                    int direction = random_int(0, 1); // 0 for left to right, 1 for right to left
+                    int lane = random_int(0, 1);      // Randomly pick between lanes
+
+                    auto waypoints2 = (direction == 0) ? highwayWaypoints[direction][lane] : highwayWaypoints[direction + 2][lane];
+                    auto &selected_waypoints = waypoints2.first;
+
+                    Eigen::VectorXd starting_position;
+                    Eigen::VectorXd ending_position;
+
+                    if (direction == 0) // Left to right
+                    {
+                        starting_position = selected_waypoints.lane_start;
+                        ending_position = selected_waypoints.lane_end;
+                    }
+                    else // Right to left
+                    {
+                        starting_position = selected_waypoints.lane_end;
+                        ending_position = selected_waypoints.lane_start;
+                    }
+
+                    std::deque<Eigen::VectorXd> waypoints3{starting_position, ending_position};
+
+                    // Define solo agent radius and color
+                    float solo_robot_radius = globals.ROBOT_RADIUS;
+                    Color solo_color = BLACK;
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints3, solo_robot_radius, solo_color, true, -1, -1));
+                }
+
+                // Delete rogue robots if out of bounds
+                for (auto [rid, robot] : robots_)
+                {
+                    if ((abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2) && robot->color_.r == 0 && robot->color_.g == 0 && robot->color_.b == 0)
+                    {
+                        robots_to_delete.push_back(robot);
+                    }
+                }
+            }
+        }
+
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow the robot in front of them
+            for (int group = 0; group < 4; ++group)
+            {
+                int start_index = group * (globals.NUM_ROBOTS + 1);
+                for (int i = start_index + 1; i <= start_index + globals.NUM_ROBOTS; i++)
+                {
+                    auto target = robots_.at(i - 1);             // The robot in front
+                    auto follower = robots_.at(i);               // The current follower
+                    follower->waypoints_[0] = target->position_; // Update the follower's target position to the current position of the robot in front
+                }
+            }
+        }
+    }
+    else if (globals.FORMATION == "highway-combined-2")
+    {
+        new_robots_needed_ = true;
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
+        {
+            int num_groups = globals.NUM_ROBOTS / 2; // Each group has a master and a follower
+
+            for (int group = 0; group < num_groups; group++)
+            {
+                int n_roads = 2; // Adjusted to match the highway configuration
+                int road = random_int(0, n_roads - 1);
+                int n_lanes = 2;
+                double lane_width = 4.0 * globals.ROBOT_RADIUS;
+                double road_length = globals.WORLD_SZ;        // Length of each road
+                double road_spacing = globals.WORLD_SZ / 3.5; // Distance between roads
+                double road_v_offset = (road - 0.375) * road_spacing;
+                bool flip_ramps = (road % 2 != 0); // Flip ramps on one road
+
+                int lane = random_int(0, n_lanes - 1);
+                double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
+
+                double ramp_length = road_length / 2.7;     // Length of on/off ramps
+                double ramp_angle = M_PI / 2.9;             // Angle of the ramps to the road
+                double ramp_length_off = road_length / 3.2; // Length of on/off ramps
+                double ramp_angle_off = M_PI / 3.2;         // Angle of the ramps to the road
+
+                // Ramp positions as variables
+                double on_ramp_start_pos = -road_length / 3.1;
+                double on_ramp_end_pos = -road_length / 6.;
+                double off_ramp_start_pos = road_length / 6.0;
+                double off_ramp_end_pos = road_length / 3.1;
+
+                // Define ramp positions based on the flip condition
+                double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
+                double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
+
+                if (flip_ramps)
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
+                }
+                else
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
+                }
+
+                // Define starting, turning, and ending points for master robots
+                Eigen::VectorXd starting_master = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd turning_1 = Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd turning_2 = Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd ending_master = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}};
+
+                // Define starting, turning, and ending points for slave robots
+                Eigen::VectorXd starting_slave = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd ending_slave = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}};
+
+                std::deque<Eigen::VectorXd> waypoints_master;
+                std::deque<Eigen::VectorXd> waypoints_slave;
+
+                // Create waypoints for master and slave robots
+                if (!flip_ramps) // If ramps are not flipped, the master robot goes from left to right
+                {
+                    waypoints_master = {starting_master, turning_1, turning_2, ending_master};
+                    waypoints_slave = {starting_slave, turning_1, turning_2, ending_slave};
+                }
+                else
+                {
+                    waypoints_master = {ending_master, turning_2, turning_1, starting_master};
+                    waypoints_slave = {ending_slave, turning_2, turning_1, starting_slave};
+                }
+                // Assign unique IDs before creating the robots
+                int master_id = next_rid_;
+                next_rid_++;
+                int follower_id = next_rid_;
+                next_rid_++;
+
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color master_color = DARKGREEN;
+                robots_to_create.push_back(std::make_shared<Robot>(this, master_id, waypoints_master, robot_radius, master_color, true, -1, group));
+
+                Color follower_color = DARKBLUE;
+                robots_to_create.push_back(std::make_shared<Robot>(this, follower_id, waypoints_slave, robot_radius, follower_color, false, master_id, group)); // The follower follows the master
+            }
+        }
+
+        // Update the followers to follow their respective masters
+        if (!robots_.empty())
+        {
+            for (int group = 0; group < globals.NUM_ROBOTS / 2; ++group)
+            {
+                int master_index = group * 2;          // Master index
+                int follower_index = master_index + 1; // Follower index
+                auto master = robots_.at(master_index);
+                auto follower = robots_.at(follower_index);
+
+                // Set the follower's waypoint to the master's current position
+                follower->waypoints_[0] = master->position_;
             }
         }
     }
