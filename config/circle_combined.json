@@ -20,7 +20,7 @@
   "COMMUNICATION_RADIUS": 20,
   "MAX_SPEED": 2,
   "COMMS_FAILURE_RATE": 0,
-  "FORMATION": "masterSlaveFollowerLeader",
+  "FORMATION": "circle-combined",
   "OBSTACLE_FILE": "",
 
   "###": "GBP parameters",

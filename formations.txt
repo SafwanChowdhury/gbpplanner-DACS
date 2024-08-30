@@ -1,0 +1,13 @@
+- Circle Formation - MasterSlave - ./gbpplanner --cfg "../config/config.json"
+
+- Circle Formation - Follower-Leader - ./gbpplanner --cfg "../config/circle_group.json"
+
+- Circle Formation - Combined Techniques - ./gbpplanner --cfg "../config/circle_combined.json"
+
+
+- Highway Formation - MasterSlave - ./gbpplanner --cfg "../config/highway.json"
+
+- Highway Formation - Follower-Leader (Rogue agents can be toggled) - ./gbpplanner --cfg "../config/highway-rogue.json"
+
+
+- Highway Formation - Combined Techniques - ./gbpplanner --cfg "../config/highway-combined.json"
