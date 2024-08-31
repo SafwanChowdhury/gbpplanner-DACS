@@ -1811,22 +1811,13 @@ void Simulator::exportSafeZoneData() const
         file << title << "\n";
 
         // Write header as the second row
-        file << "Timestamp";
-        for (size_t i = 0; i < safe_zone_data_[0].violations.size(); ++i)
-        {
-            file << ",Robot" << i;
-        }
-        file << "\n";
+        file << "Timestamp,Total Violations\n";
 
         // Write data
         for (const auto &data : safe_zone_data_)
         {
-            file << data.timestamp;
-            for (int violation : data.violations)
-            {
-                file << "," << violation;
-            }
-            file << "\n";
+            int totalViolations = std::accumulate(data.violations.begin(), data.violations.end(), 0);
+            file << data.timestamp << "," << totalViolations << "\n";
         }
 
         if (file.fail())
