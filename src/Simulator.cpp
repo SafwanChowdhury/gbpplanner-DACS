@@ -1730,7 +1730,27 @@ void Simulator::deleteRobot(std::shared_ptr<Robot> robot)
 
 void Simulator::exportSafeZoneData() const
 {
-    static const char *SAFE_ZONE_DATA_FILENAME = "safe_zone_violations.csv";
+    auto formatOneDP = [](double value)
+    {
+        std::string s = std::to_string(std::round(value * 10.0) / 10.0);
+        s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+        if (s.back() == '.')
+            s.pop_back();
+        return s;
+    };
+
+    // Create a dynamic filename with formatted values
+    std::string filename = "safe_zone_violations_" +
+                           globals.FORMATION + "_" +
+                           std::to_string(globals.NUM_ROBOTS) + "robots_" +
+                           "SM" + formatOneDP(globals.SIGMA_FACTOR_MASTERSLAVE) + "_" +
+                           "MD" + formatOneDP(globals.MIN_DISTANCE) + "_" +
+                           "XD" + formatOneDP(globals.MAX_DISTANCE) + ".csv";
+
+    // Replace spaces and special characters in the filename
+    std::replace(filename.begin(), filename.end(), ' ', '_');
+    std::replace(filename.begin(), filename.end(), ':', '_');
+    std::replace(filename.begin(), filename.end(), ',', '_');
 
     if (safe_zone_data_.empty())
     {
@@ -1738,17 +1758,51 @@ void Simulator::exportSafeZoneData() const
         return;
     }
 
-    std::ofstream file(SAFE_ZONE_DATA_FILENAME, std::ios::out | std::ios::trunc);
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
     if (!file.is_open())
     {
-        std::cerr << "Failed to create or open file: " << SAFE_ZONE_DATA_FILENAME << std::endl;
+        std::cerr << "Failed to create or open file: " << filename << std::endl;
         std::cerr << "Error: " << std::strerror(errno) << std::endl;
         return;
     }
 
     try
     {
-        // Write header
+
+        // Function to replace all occurrences of a substring with another string
+        auto replaceAll = [](std::string &str, const std::string &from, const std::string &to)
+        {
+            size_t startPos = 0;
+            while ((startPos = str.find(from, startPos)) != std::string::npos)
+            {
+                str.replace(startPos, from.length(), to);
+                startPos += to.length(); // Move past the last replacement
+            }
+        };
+        auto removeChar = [](std::string &str, char charToRemove)
+        {
+            str.erase(std::remove(str.begin(), str.end(), charToRemove), str.end());
+        };
+        std::string name = std::string(filename);
+
+        replaceAll(name, "safe_zone_violations_", "");
+        replaceAll(name, "follow-leader", "fl-");
+        replaceAll(name, "combined", "com-");
+        removeChar(name, '_');
+        replaceAll(name, ".csv", "");
+
+        // Create title from config values, also using formatted values
+        std::string title = "Formation: " + globals.FORMATION +
+                            ", Num Robots: " + std::to_string(globals.NUM_ROBOTS) +
+                            ", Sigma Factor MasterSlave: " + formatOneDP(globals.SIGMA_FACTOR_MASTERSLAVE) +
+                            ", Min Distance: " + formatOneDP(globals.MIN_DISTANCE) +
+                            ", Max Distance: " + formatOneDP(globals.MAX_DISTANCE) + ", " +
+                            name;
+
+        // Write title as the first row
+        file << title << "\n";
+
+        // Write header as the second row
         file << "Timestamp";
         for (size_t i = 0; i < safe_zone_data_[0].violations.size(); ++i)
         {
@@ -1772,7 +1826,7 @@ void Simulator::exportSafeZoneData() const
             throw std::runtime_error("Failed to write data to file");
         }
 
-        std::cout << "Safe zone violation data exported to " << SAFE_ZONE_DATA_FILENAME << std::endl;
+        std::cout << "Safe zone violation data exported to " << filename << std::endl;
     }
     catch (const std::exception &e)
     {
