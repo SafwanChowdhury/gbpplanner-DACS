@@ -99,4 +99,14 @@ public:
     int safe_zone_violations_;
 
     bool checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &robots);
+    void updatePathHistory();
+    double distanceToMasterPath(const Robot *master) const;
+
+private:
+    std::deque<Eigen::Vector2d> path_history_;
+    static const size_t MAX_PATH_HISTORY_SIZE = 1000;
+
+    double pointToLineSegmentDistance(const Eigen::Vector2d &point,
+                                      const Eigen::Vector2d &lineStart,
+                                      const Eigen::Vector2d &lineEnd) const;
 };

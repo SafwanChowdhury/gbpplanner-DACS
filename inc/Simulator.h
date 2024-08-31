@@ -119,6 +119,13 @@ public:
     {
         return std::uniform_int_distribution<int>(lower, upper)(gen_uniform_int);
     }
+    struct GroupDeviationData
+    {
+        double total_deviation = 0.0;
+        int sample_count = 0;
+    };
+
+    std::map<int, GroupDeviationData> group_deviation_data_;
 
 private:
     struct SafeZoneViolationData
@@ -129,4 +136,15 @@ private:
     std::vector<SafeZoneViolationData> safe_zone_data_;
 
     void exportSafeZoneData() const;
+    void logSafeZoneViolation();
+
+    struct FormationIntegrityData
+    {
+        double integrity_index;
+        double overall_avg_deviation;
+    };
+
+    FormationIntegrityData calculateFormationIntegrity() const;
+    void exportFormationIntegrityData() const;
+    void logPathDeviation();
 };

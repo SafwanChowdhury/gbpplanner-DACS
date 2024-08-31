@@ -40,6 +40,7 @@ Simulator::Simulator()
 /*******************************************************************************/
 Simulator::~Simulator()
 {
+    exportFormationIntegrityData();
     exportSafeZoneData();
     delete treeOfRobots_;
     int n = robots_.size();
@@ -245,15 +246,8 @@ void Simulator::timestep()
     }
 
     // Tests for safe zone violations
-    SafeZoneViolationData data;
-    data.timestamp = clock_;
-
-    for (const auto &[rid, robot] : robots_)
-    {
-        data.violations.push_back(robot->checkSafeZoneViolation(robots_) ? 1 : 0);
-    }
-
-    safe_zone_data_.push_back(data);
+    logSafeZoneViolation();
+    logPathDeviation();
 
     // Increase simulation clock by one timestep
     clock_++;
@@ -506,7 +500,7 @@ void Simulator::createOrDeleteRobots()
             // If i is even, robot is red, else blue.
             bool isMaster = (next_rid_ % 2 == 0); // for example, even ids are masters
             Color robot_color = isMaster ? DARKBROWN : DARKBLUE;
-            int master_id = isMaster ? next_rid_ : next_rid_ - 1; // for example, each slave has the previous robot as master
+            int master_id = isMaster ? -1 : next_rid_ - 1; // for example, each slave has the previous robot as master
 
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id, -1));
         }
@@ -1487,12 +1481,13 @@ void Simulator::createOrDeleteRobots()
                 std::deque<Eigen::VectorXd> waypoints_leader{leader_start, leader_end};
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color leader_color = DARKGREEN;
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color, true, -1, group));
+                int leader_id = next_rid_++;
+                robots_to_create.push_back(std::make_shared<Robot>(this, leader_id, waypoints_leader, robot_radius, leader_color, true, -1, group));
                 // Create follower robot
                 Eigen::VectorXd follower_start = centre + offset_from_centre_outer;
                 std::deque<Eigen::VectorXd> waypoints_follower{follower_start, follower_start};
                 Color follower_color = BLUE;
-                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_follower, robot_radius, follower_color, true, -1, group));
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_follower, robot_radius, follower_color, true, leader_id, group));
             }
         }
         if (!robots_.empty())
@@ -1728,6 +1723,19 @@ void Simulator::deleteRobot(std::shared_ptr<Robot> robot)
 // Testing functions
 /*******************************************************************************/
 
+void Simulator::logSafeZoneViolation()
+{
+    SafeZoneViolationData data;
+    data.timestamp = clock_;
+
+    for (const auto &[rid, robot] : robots_)
+    {
+        data.violations.push_back(robot->checkSafeZoneViolation(robots_) ? 1 : 0);
+    }
+
+    safe_zone_data_.push_back(data);
+}
+
 void Simulator::exportSafeZoneData() const
 {
     auto formatOneDP = [](double value)
@@ -1827,6 +1835,166 @@ void Simulator::exportSafeZoneData() const
         }
 
         std::cout << "Safe zone violation data exported to " << filename << std::endl;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error while writing to file: " << e.what() << std::endl;
+    }
+
+    file.close();
+}
+
+void Simulator::logPathDeviation()
+{
+    std::unordered_map<int, std::pair<double, int>> master_deviations;
+
+    for (const auto &[rid, robot] : robots_)
+    {
+        if (robot->master_id_ != -1)
+        {
+            int master_id = robot->master_id_;
+            if (robots_.find(master_id) != robots_.end())
+            {
+                auto master = robots_.at(master_id);
+                double deviation = robot->distanceToMasterPath(master.get());
+
+                if (master_deviations.find(master_id) == master_deviations.end())
+                {
+                    master_deviations[master_id] = {deviation, 1};
+                }
+                else
+                {
+                    master_deviations[master_id].first += deviation;
+                    master_deviations[master_id].second++;
+                }
+            }
+        }
+    }
+
+    for (const auto &[master_id, deviation_data] : master_deviations)
+    {
+        double avg_deviation = deviation_data.first / deviation_data.second;
+        group_deviation_data_[master_id].total_deviation += avg_deviation;
+        group_deviation_data_[master_id].sample_count++;
+    }
+}
+
+Simulator::FormationIntegrityData Simulator::calculateFormationIntegrity() const
+{
+    FormationIntegrityData result = {0.0, 0.0};
+
+    if (group_deviation_data_.empty())
+    {
+        print("No group deviation data available");
+        return result;
+    }
+
+    double total_avg_deviation = 0.0;
+    int total_groups = 0;
+
+    for (const auto &[group_id, data] : group_deviation_data_)
+    {
+        if (data.sample_count > 0)
+        {
+            total_avg_deviation += data.total_deviation / data.sample_count;
+            total_groups++;
+        }
+    }
+
+    if (total_groups == 0)
+    {
+        print("No valid group deviation data available");
+        return result;
+    }
+
+    result.overall_avg_deviation = total_avg_deviation / total_groups;
+    // Normalize the index to be between 0 and 1, where 1 is perfect integrity
+    // Assuming a maximum acceptable deviation of 2 * robot_radius
+    double max_acceptable_deviation = 2 * globals.ROBOT_RADIUS;
+    result.integrity_index = std::max(0.0, 1.0 - (result.overall_avg_deviation / max_acceptable_deviation));
+
+    return result;
+}
+
+void Simulator::exportFormationIntegrityData() const
+{
+    auto formatTwoDP = [](double value)
+    {
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(2) << value;
+        return stream.str();
+    };
+
+    std::string filename = "formation_integrity_" +
+                           globals.FORMATION + "_" +
+                           std::to_string(globals.NUM_ROBOTS) + "robots_" +
+                           "SM" + formatTwoDP(globals.SIGMA_FACTOR_MASTERSLAVE) + "_" +
+                           "MD" + formatTwoDP(globals.MIN_DISTANCE) + "_" +
+                           "XD" + formatTwoDP(globals.MAX_DISTANCE) + ".csv";
+
+    std::replace(filename.begin(), filename.end(), ' ', '_');
+    std::replace(filename.begin(), filename.end(), ':', '_');
+    std::replace(filename.begin(), filename.end(), ',', '_');
+
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to create or open file: " << filename << std::endl;
+        return;
+    }
+
+    try
+    {
+        // Function to replace all occurrences of a substring with another string
+        auto replaceAll = [](std::string &str, const std::string &from, const std::string &to)
+        {
+            size_t startPos = 0;
+            while ((startPos = str.find(from, startPos)) != std::string::npos)
+            {
+                str.replace(startPos, from.length(), to);
+                startPos += to.length(); // Move past the last replacement
+            }
+        };
+        auto removeChar = [](std::string &str, char charToRemove)
+        {
+            str.erase(std::remove(str.begin(), str.end(), charToRemove), str.end());
+        };
+        std::string name = std::string(filename);
+        replaceAll(name, "formation_integrity_", "");
+        replaceAll(name, "follow-leader", "fl-");
+        replaceAll(name, "combined", "com-");
+        removeChar(name, '_');
+        replaceAll(name, ".csv", "");
+
+        // Create title from config values, also using formatted values
+        std::string title = "Formation: " + globals.FORMATION +
+                            ", Num Robots: " + std::to_string(globals.NUM_ROBOTS) +
+                            ", Sigma Factor MasterSlave: " + formatTwoDP(globals.SIGMA_FACTOR_MASTERSLAVE) +
+                            ", Min Distance: " + formatTwoDP(globals.MIN_DISTANCE) +
+                            ", Max Distance: " + formatTwoDP(globals.MAX_DISTANCE) + ", " +
+                            name;
+
+        // Write title as the first row
+        file << title << "\n";
+
+        // Write header as the second row
+        file << "Group,Average Deviation,Formation Integrity Index,Overall Average Deviation\n";
+
+        FormationIntegrityData integrity_data = calculateFormationIntegrity();
+
+        for (const auto &[group_id, data] : group_deviation_data_)
+        {
+            double avg_deviation = data.sample_count > 0 ? data.total_deviation / data.sample_count : 0.0;
+            file << group_id << "," << formatTwoDP(avg_deviation) << ",";
+            if (group_id == group_deviation_data_.begin()->first)
+            {
+                file << formatTwoDP(integrity_data.integrity_index) << ","
+                     << formatTwoDP(integrity_data.overall_avg_deviation);
+            }
+            file << "\n";
+        }
+
+        std::cout << "Formation Integrity Data exported to " << filename << std::endl;
     }
     catch (const std::exception &e)
     {

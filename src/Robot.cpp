@@ -132,6 +132,8 @@ void Robot::updateCurrent()
     // Calculate heading (assuming positive x-axis is 0 degrees)
     double current_heading = std::atan2(current_velocity.y(), current_velocity.x());
 
+    updatePathHistory();
+
     // print the increment vector for robot id 5
     // if (rid_ == 5)
     // {
@@ -418,4 +420,52 @@ bool Robot::checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &
         }
     }
     return false;
+}
+
+void Robot::updatePathHistory()
+{
+    if (master_id_ == -1)
+    { // Only update path history for master robots
+        path_history_.push_back(position_.head<2>());
+        if (path_history_.size() > MAX_PATH_HISTORY_SIZE)
+        {
+            path_history_.pop_front();
+        }
+    }
+}
+
+double Robot::distanceToMasterPath(const Robot *master) const
+{
+    if (master->path_history_.size() < 2)
+    {
+        return (position_.head<2>() - master->path_history_.back()).norm();
+    }
+
+    double min_distance = std::numeric_limits<double>::max();
+    for (size_t i = 1; i < master->path_history_.size(); ++i)
+    {
+        double distance = pointToLineSegmentDistance(position_.head<2>(), master->path_history_[i - 1], master->path_history_[i]);
+        min_distance = std::min(min_distance, distance);
+    }
+    return min_distance;
+}
+
+double Robot::pointToLineSegmentDistance(const Eigen::Vector2d &point,
+                                         const Eigen::Vector2d &lineStart,
+                                         const Eigen::Vector2d &lineEnd) const
+{
+    Eigen::Vector2d line = lineEnd - lineStart;
+    double line_length_sq = line.squaredNorm();
+
+    if (line_length_sq < 1e-6)
+    { // Line segment is a point
+        return (point - lineStart).norm();
+    }
+
+    // Calculate the projection of the point onto the line
+    double t = (point - lineStart).dot(line) / line_length_sq;
+    t = std::max(0.0, std::min(1.0, t)); // Clamp t to [0, 1]
+
+    Eigen::Vector2d projection = lineStart + t * line;
+    return (point - projection).norm();
 }
