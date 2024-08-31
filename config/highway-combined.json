@@ -14,13 +14,13 @@
   "SEED": 2,
   "TIMESTEP": 0.1,
   "MAX_TIME": 10000,
-  "NUM_ROBOTS": 20,
+  "NUM_ROBOTS": 7,
   "T_HORIZON": 5,
   "ROBOT_RADIUS": 1,
   "COMMUNICATION_RADIUS": 20,
-  "MAX_SPEED": 3,
+  "MAX_SPEED": 2,
   "COMMS_FAILURE_RATE": 0,
-  "FORMATION": "highway-combined-2",
+  "FORMATION": "highway-combined",
   "OBSTACLE_FILE": "../assets/imgs/highway.png",
 
   "###": "GBP parameters",
@@ -28,9 +28,10 @@
   "SIGMA_FACTOR_INTERROBOT": 0.01,
   "SIGMA_FACTOR_OBSTACLE": 0.01,
   "SIGMA_FACTOR_MASTERSLAVE": 0.25,
-  "MIN_DISTANCE": 5,
-  "MAX_DISTANCE": 10,
+  "MIN_DISTANCE": 10,
+  "MAX_DISTANCE": 20,
   "NUM_ITERS": 10,
-  "ROGUE_AGENTS": 0
+  "ROGUE_AGENTS": 0,
+  "TESTING": 1
 
 }

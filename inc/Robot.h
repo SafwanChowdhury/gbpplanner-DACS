@@ -12,6 +12,14 @@
 #include <gbp/Factor.h>
 #include <gbp/Factorgraph.h>
 
+struct DistanceViolationData
+{
+    int below_min_occurrences = 0;
+    int above_max_occurrences = 0;
+    int below_min_time = 0;
+    int above_max_time = 0;
+};
+
 extern Globals globals;
 
 /***************************************************************************/
@@ -102,8 +110,15 @@ public:
     void updatePathHistory();
     double distanceToMasterPath(const Robot *master) const;
 
-private:
+    DistanceViolationData distance_violations_;
+    bool is_below_min_distance_ = false;
+    bool is_above_max_distance_ = false;
+
+    void checkAndUpdateDistanceViolations(const std::shared_ptr<Robot> &master);
+
     std::deque<Eigen::Vector2d> path_history_;
+
+private:
     static const size_t MAX_PATH_HISTORY_SIZE = 1000;
 
     double pointToLineSegmentDistance(const Eigen::Vector2d &point,

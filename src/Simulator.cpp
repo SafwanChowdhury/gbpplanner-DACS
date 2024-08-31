@@ -40,8 +40,10 @@ Simulator::Simulator()
 /*******************************************************************************/
 Simulator::~Simulator()
 {
-    exportFormationIntegrityData();
-    exportSafeZoneData();
+    if (globals.TESTING)
+    {
+        exportConsolidatedData();
+    }
     delete treeOfRobots_;
     int n = robots_.size();
     for (int i = 0; i < n; ++i)
@@ -187,6 +189,28 @@ void Simulator::draw()
     for (auto &[rid, robot] : robots_)
     {
         robot->draw();
+
+        if (globals.TESTING)
+        {
+            // Draw path trace
+            if (robot->path_history_.size() > 1)
+            {
+                Color traceColor = robot->isMaster_ ? RED : BLUE;
+                for (size_t i = 1; i < robot->path_history_.size(); ++i)
+                {
+                    Vector3 start = {
+                        static_cast<float>(robot->path_history_[i - 1](0)),
+                        static_cast<float>(robot->height_3D_),
+                        static_cast<float>(robot->path_history_[i - 1](1))};
+                    Vector3 end = {
+                        static_cast<float>(robot->path_history_[i](0)),
+                        static_cast<float>(robot->height_3D_),
+                        static_cast<float>(robot->path_history_[i](1))};
+                    DrawLine3D(start, end, traceColor);
+                }
+            }
+        }
+
         if (!robot->isMaster_)
         {
             auto master_robot = robots_.find(robot->master_id_);
@@ -243,12 +267,21 @@ void Simulator::timestep()
     {
         robot->updateHorizon();
         robot->updateCurrent();
+        if (globals.TESTING)
+        {
+            if (robot->master_id_ != -1 && robots_.find(robot->master_id_) != robots_.end())
+            {
+                robot->checkAndUpdateDistanceViolations(robots_[robot->master_id_]);
+            }
+        }
     }
 
-    // Tests for safe zone violations
-    logSafeZoneViolation();
-    logPathDeviation();
-
+    if (globals.TESTING)
+    {
+        // Tests for safe zone violations
+        logSafeZoneViolation();
+        logPathDeviation();
+    }
     // Increase simulation clock by one timestep
     clock_++;
     if (clock_ >= globals.MAX_TIME)
@@ -893,7 +926,7 @@ void Simulator::createOrDeleteRobots()
             bool isMaster = true;
             Color robot_color_master = DARKBROWN;
             int master_id = next_rid_;
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, master_id, -1));
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_master, robot_radius, robot_color_master, isMaster, -1, -1));
 
             // Create slave robot
             isMaster = false;
@@ -904,7 +937,7 @@ void Simulator::createOrDeleteRobots()
         // Delete robots if out of bounds
         for (auto [rid, robot] : robots_)
         {
-            if (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2)
+            if (robot->waypoints_.size() < 2 && (abs(robot->position_(0)) > globals.WORLD_SZ / 2 || abs(robot->position_(1)) > globals.WORLD_SZ / 2))
             {
                 robots_to_delete.push_back(robot);
             }
@@ -1063,6 +1096,170 @@ void Simulator::createOrDeleteRobots()
                 }
                 int start_index = group * (globals.NUM_ROBOTS + 1);
                 for (int i = start_index + 1; i <= start_index + globals.NUM_ROBOTS; i++)
+                {
+                    auto target = robots_.at(i - 1);
+                    auto follower = robots_.at(i);
+                    Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0.0, 0.0, 0.0, 0.0}};
+                    follower->waypoints_[0] = target->position_ - offset_from_target;
+                }
+            }
+        }
+    }
+    else if (globals.FORMATION == "highway-follow-leader-2")
+    {
+        new_robots_needed_ = true;
+
+        // Calculate number of groups and followers
+        int num_groups = std::max(1, globals.NUM_ROBOTS / 2); // At least 1 group, 1 leader + 1 follower minimum
+        int followers_per_group = (globals.NUM_ROBOTS - num_groups) / num_groups;
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
+        {
+            int n_roads = 2; // Number of roads in the highway configuration
+            int n_lanes = 2;
+            double lane_width = 4.0 * globals.ROBOT_RADIUS;
+            double road_spacing = globals.WORLD_SZ / 3.5;
+
+            for (int group = 0; group < num_groups; ++group)
+            {
+                int road = group % 2; // Road is set to 0 for even groups, 1 for odd groups
+                double road_v_offset = (road - 0.375) * road_spacing;
+                bool flip_ramps = (group % 2 == 1);                       // Flip ramps for odd groups
+                bool travel_on_highway = (group >= (num_groups + 1) / 2); // Later half of groups travel on the main highway
+
+                int lane = random_int(0, n_lanes - 1);
+                double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
+
+                double road_length = globals.WORLD_SZ;      // Length of each road
+                double ramp_length = road_length / 2.7;     // Length of on/off ramps
+                double ramp_angle = M_PI / 2.9;             // Angle of the ramps to the road
+                double ramp_length_off = road_length / 3.2; // Length of off ramps
+                double ramp_angle_off = M_PI / 3.2;         // Angle of the off ramps to the road
+
+                double on_ramp_start_pos = -road_length / 3.1;
+                double on_ramp_end_pos = -road_length / 6.;
+                double off_ramp_start_pos = road_length / 6.0;
+                double off_ramp_end_pos = road_length / 3.1;
+
+                // Define ramp positions based on the flip condition
+                double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
+                double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
+
+                if (flip_ramps)
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
+                }
+                else
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
+                }
+
+                // Define waypoints for the leader robot
+                std::deque<Eigen::VectorXd> waypoints_leader;
+
+                if (travel_on_highway)
+                {
+                    if (road == 0) // Left to right on road 0
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
+                    else // Right to left on road 1
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}});
+                    }
+                }
+                else
+                {
+                    if (!flip_ramps)
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}});
+                    }
+                    else
+                    {
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}});
+                        waypoints_leader.push_back(Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, 0.0, 0.0}});
+                    }
+                }
+
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color leader_color = ColorFromHSV(group * 360.0 / num_groups, 1.0, 0.75);
+                int leader_id = next_rid_++;
+                // Create the leader robot for each group
+                robots_to_create.push_back(std::make_shared<Robot>(this, leader_id, waypoints_leader, robot_radius, leader_color, true, -1, group));
+
+                // Create follower robots
+                for (int i = 1; i <= followers_per_group; i++)
+                {
+                    Eigen::VectorXd starting_position;
+                    if (travel_on_highway)
+                    {
+                        if (road == 0)
+                        {
+                            starting_position = Eigen::VectorXd{{-road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
+                        }
+                        else
+                        {
+                            starting_position = Eigen::VectorXd{{road_length / 2.0, road_v_offset, globals.MAX_SPEED, 0.0}};
+                        }
+                    }
+                    else
+                    {
+                        if (!flip_ramps)
+                        {
+                            starting_position = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                        }
+                        else
+                        {
+                            starting_position = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}};
+                        }
+                    }
+                    std::deque<Eigen::VectorXd> waypoints{starting_position, starting_position};
+
+                    // Define robot radius and colour
+                    float follower_radius = globals.ROBOT_RADIUS;
+                    Color follower_color = ColorFromHSV((group * 360.0 / num_groups) + (i * 30.0 / followers_per_group), 1.0, 0.75);
+                    robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, follower_radius, follower_color, true, leader_id + i - 1, group));
+                }
+            }
+        }
+
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow the node in front of them
+            for (int group = 0; group < num_groups; ++group)
+            {
+                if (random_double(0.0, 1.0) < 0.87) // 87% communication failure rate
+                {
+                    continue;
+                }
+                int start_index = group * (followers_per_group + 1);
+                for (int i = start_index + 1; i <= start_index + followers_per_group; i++)
                 {
                     auto target = robots_.at(i - 1);
                     auto follower = robots_.at(i);
@@ -1569,7 +1766,7 @@ void Simulator::createOrDeleteRobots()
             }
         }
     }
-    else if (globals.FORMATION == "highway-combined")
+    else if (globals.FORMATION == "highway-combined-2")
     {
         new_robots_needed_ = true;
 
@@ -1686,6 +1883,153 @@ void Simulator::createOrDeleteRobots()
             }
         }
     }
+    else if (globals.FORMATION == "highway-combined")
+    {
+        new_robots_needed_ = true;
+
+        // Robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
+        {
+            int robots_per_full_group = 3; // Master + 2 followers
+            int num_full_groups = globals.NUM_ROBOTS / robots_per_full_group;
+            int remaining_robots = globals.NUM_ROBOTS % robots_per_full_group;
+            int total_groups = num_full_groups + (remaining_robots > 0 ? 1 : 0);
+
+            for (int group = 0; group < total_groups; group++)
+            {
+                int n_roads = 2;
+                int road = group % 2; // Alternates between 0 (top) and 1 (bottom)
+                int n_lanes = 2;
+                double lane_width = 4.0 * globals.ROBOT_RADIUS;
+                double road_length = globals.WORLD_SZ;
+                double road_spacing = globals.WORLD_SZ / 3.5;
+                double road_v_offset = (road - 0.375) * road_spacing;
+                bool flip_ramps = (road == 1); // Flip ramps for the bottom road
+
+                int lane = random_int(0, n_lanes - 1);
+                double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
+
+                double ramp_length = road_length / 2.7;     // Length of on/off ramps
+                double ramp_angle = M_PI / 2.9;             // Angle of the ramps to the road
+                double ramp_length_off = road_length / 3.2; // Length of on/off ramps
+                double ramp_angle_off = M_PI / 3.2;         // Angle of the ramps to the road
+
+                // Ramp positions as variables
+                double on_ramp_start_pos = -road_length / 3.1;
+                double on_ramp_end_pos = -road_length / 6.;
+                double off_ramp_start_pos = road_length / 6.0;
+                double off_ramp_end_pos = road_length / 3.1;
+
+                // Define ramp positions based on the flip condition
+                double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
+                double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
+
+                if (flip_ramps)
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
+                }
+                else
+                {
+                    on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
+                    on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
+                    on_ramp_merge_x = on_ramp_end_pos;
+                    on_ramp_merge_y = lane_v_offset;
+
+                    off_ramp_start_x = off_ramp_start_pos;
+                    off_ramp_start_y = lane_v_offset;
+                    off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
+                    off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
+                }
+
+                // Define starting, turning, and ending points for master robots
+                Eigen::VectorXd starting_master = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd turning_1 = Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd turning_2 = Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd ending_master = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}};
+
+                // Define starting, turning, and ending points for slave robots
+                Eigen::VectorXd starting_slave = Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}};
+                Eigen::VectorXd ending_slave = Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, 0.0, 0.0}};
+
+                std::deque<Eigen::VectorXd> waypoints_master;
+                std::deque<Eigen::VectorXd> waypoints_slave;
+
+                // Create waypoints for master and slave robots
+                if (!flip_ramps) // If ramps are not flipped, the master robot goes from left to right
+                {
+                    waypoints_master = {starting_master, turning_1, turning_2, ending_master};
+                    waypoints_slave = {starting_slave, turning_1, turning_2, ending_slave};
+                }
+                else
+                {
+                    waypoints_master = {ending_master, turning_2, turning_1, starting_master};
+                    waypoints_slave = {ending_slave, turning_2, turning_1, starting_slave};
+                }
+
+                int master_id = next_rid_++;
+                int follower1_id = next_rid_++;
+                int follower2_id = -1; // Initialize to -1, will be set if there's a second follower
+
+                float robot_radius = globals.ROBOT_RADIUS;
+
+                // Create master robot
+                Color master_color = DARKBLUE;
+                robots_to_create.push_back(std::make_shared<Robot>(this, master_id, waypoints_master, robot_radius, master_color, true, -1, group));
+
+                // Create first follower
+                Color follower1_color = RED;
+                robots_to_create.push_back(std::make_shared<Robot>(this, follower1_id, waypoints_slave, robot_radius, follower1_color, false, master_id, group));
+
+                // Create second follower if it's a full group or if there are enough remaining robots
+                if (group < num_full_groups || (group == num_full_groups && remaining_robots > 2))
+                {
+                    follower2_id = next_rid_++;
+                    Color follower2_color = YELLOW;
+                    robots_to_create.push_back(std::make_shared<Robot>(this, follower2_id, waypoints_slave, robot_radius, follower2_color, false, follower1_id, group));
+                }
+            }
+        }
+
+        // Update the followers to follow their respective leaders
+        if (!robots_.empty())
+        {
+            int robots_per_full_group = 3;
+            int num_full_groups = globals.NUM_ROBOTS / robots_per_full_group;
+            int remaining_robots = globals.NUM_ROBOTS % robots_per_full_group;
+            int total_groups = num_full_groups + (remaining_robots > 0 ? 1 : 0);
+
+            for (int group = 0; group < total_groups; ++group)
+            {
+                int master_index = group * robots_per_full_group;
+                int follower1_index = master_index + 1;
+                int follower2_index = master_index + 2;
+
+                if (robots_.count(master_index) && robots_.count(follower1_index))
+                {
+                    auto master = robots_.at(master_index);
+                    auto follower1 = robots_.at(follower1_index);
+
+                    // Set the first follower's waypoint to the master's current position
+                    follower1->waypoints_[0] = master->position_;
+
+                    // Update second follower if it exists
+                    if (robots_.count(follower2_index))
+                    {
+                        auto follower2 = robots_.at(follower2_index);
+                        follower2->waypoints_[0] = follower1->position_;
+                    }
+                }
+            }
+        }
+    }
     else
     {
         print("Shouldn't reach here, formation not defined!");
@@ -1734,105 +2078,6 @@ void Simulator::logSafeZoneViolation()
     }
 
     safe_zone_data_.push_back(data);
-}
-
-void Simulator::exportSafeZoneData() const
-{
-    auto formatOneDP = [](double value)
-    {
-        std::string s = std::to_string(std::round(value * 10.0) / 10.0);
-        s.erase(s.find_last_not_of('0') + 1, std::string::npos);
-        if (s.back() == '.')
-            s.pop_back();
-        return s;
-    };
-
-    // Create a dynamic filename with formatted values
-    std::string filename = "safe_zone_violations_" +
-                           globals.FORMATION + "_" +
-                           std::to_string(globals.NUM_ROBOTS) + "robots_" +
-                           "SM" + formatOneDP(globals.SIGMA_FACTOR_MASTERSLAVE) + "_" +
-                           "MD" + formatOneDP(globals.MIN_DISTANCE) + "_" +
-                           "XD" + formatOneDP(globals.MAX_DISTANCE) + ".csv";
-
-    // Replace spaces and special characters in the filename
-    std::replace(filename.begin(), filename.end(), ' ', '_');
-    std::replace(filename.begin(), filename.end(), ':', '_');
-    std::replace(filename.begin(), filename.end(), ',', '_');
-
-    if (safe_zone_data_.empty())
-    {
-        std::cout << "No safe zone violation data to export." << std::endl;
-        return;
-    }
-
-    std::ofstream file(filename, std::ios::out | std::ios::trunc);
-    if (!file.is_open())
-    {
-        std::cerr << "Failed to create or open file: " << filename << std::endl;
-        std::cerr << "Error: " << std::strerror(errno) << std::endl;
-        return;
-    }
-
-    try
-    {
-
-        // Function to replace all occurrences of a substring with another string
-        auto replaceAll = [](std::string &str, const std::string &from, const std::string &to)
-        {
-            size_t startPos = 0;
-            while ((startPos = str.find(from, startPos)) != std::string::npos)
-            {
-                str.replace(startPos, from.length(), to);
-                startPos += to.length(); // Move past the last replacement
-            }
-        };
-        auto removeChar = [](std::string &str, char charToRemove)
-        {
-            str.erase(std::remove(str.begin(), str.end(), charToRemove), str.end());
-        };
-        std::string name = std::string(filename);
-
-        replaceAll(name, "safe_zone_violations_", "");
-        replaceAll(name, "follow-leader", "fl-");
-        replaceAll(name, "combined", "com-");
-        removeChar(name, '_');
-        replaceAll(name, ".csv", "");
-
-        // Create title from config values, also using formatted values
-        std::string title = "Formation: " + globals.FORMATION +
-                            ", Num Robots: " + std::to_string(globals.NUM_ROBOTS) +
-                            ", Sigma Factor MasterSlave: " + formatOneDP(globals.SIGMA_FACTOR_MASTERSLAVE) +
-                            ", Min Distance: " + formatOneDP(globals.MIN_DISTANCE) +
-                            ", Max Distance: " + formatOneDP(globals.MAX_DISTANCE) + ", " +
-                            name;
-
-        // Write title as the first row
-        file << title << "\n";
-
-        // Write header as the second row
-        file << "Timestamp,Total Violations\n";
-
-        // Write data
-        for (const auto &data : safe_zone_data_)
-        {
-            int totalViolations = std::accumulate(data.violations.begin(), data.violations.end(), 0);
-            file << data.timestamp << "," << totalViolations << "\n";
-        }
-
-        if (file.fail())
-        {
-            throw std::runtime_error("Failed to write data to file");
-        }
-
-        std::cout << "Safe zone violation data exported to " << filename << std::endl;
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error while writing to file: " << e.what() << std::endl;
-    }
-
-    file.close();
 }
 
 void Simulator::logPathDeviation()
@@ -1907,21 +2152,21 @@ Simulator::FormationIntegrityData Simulator::calculateFormationIntegrity() const
     return result;
 }
 
-void Simulator::exportFormationIntegrityData() const
+void Simulator::exportConsolidatedData() const
 {
-    auto formatTwoDP = [](double value)
+    auto formatDP = [](double value, int precision)
     {
         std::stringstream stream;
-        stream << std::fixed << std::setprecision(2) << value;
+        stream << std::fixed << std::setprecision(precision) << value;
         return stream.str();
     };
 
-    std::string filename = "formation_integrity_" +
+    std::string filename = "consolidated_data_" +
                            globals.FORMATION + "_" +
                            std::to_string(globals.NUM_ROBOTS) + "robots_" +
-                           "SM" + formatTwoDP(globals.SIGMA_FACTOR_MASTERSLAVE) + "_" +
-                           "MD" + formatTwoDP(globals.MIN_DISTANCE) + "_" +
-                           "XD" + formatTwoDP(globals.MAX_DISTANCE) + ".csv";
+                           "SM" + formatDP(globals.SIGMA_FACTOR_MASTERSLAVE, 1) + "_" +
+                           "MD" + formatDP(globals.MIN_DISTANCE, 0) + "_" +
+                           "XD" + formatDP(globals.MAX_DISTANCE, 0) + ".csv";
 
     std::replace(filename.begin(), filename.end(), ' ', '_');
     std::replace(filename.begin(), filename.end(), ':', '_');
@@ -1936,7 +2181,6 @@ void Simulator::exportFormationIntegrityData() const
 
     try
     {
-        // Function to replace all occurrences of a substring with another string
         auto replaceAll = [](std::string &str, const std::string &from, const std::string &to)
         {
             size_t startPos = 0;
@@ -1951,41 +2195,88 @@ void Simulator::exportFormationIntegrityData() const
             str.erase(std::remove(str.begin(), str.end(), charToRemove), str.end());
         };
         std::string name = std::string(filename);
-        replaceAll(name, "formation_integrity_", "");
+        replaceAll(name, "consolidated_data_", "");
         replaceAll(name, "follow-leader", "fl-");
         replaceAll(name, "combined", "com-");
         removeChar(name, '_');
         replaceAll(name, ".csv", "");
 
-        // Create title from config values, also using formatted values
-        std::string title = "Formation: " + globals.FORMATION +
-                            ", Num Robots: " + std::to_string(globals.NUM_ROBOTS) +
-                            ", Sigma Factor MasterSlave: " + formatTwoDP(globals.SIGMA_FACTOR_MASTERSLAVE) +
-                            ", Min Distance: " + formatTwoDP(globals.MIN_DISTANCE) +
-                            ", Max Distance: " + formatTwoDP(globals.MAX_DISTANCE) + ", " +
-                            name;
+        // Write simulation parameters
+        file
+            << "Simulation Parameters\n";
+        file << "Formation," << globals.FORMATION << "\n";
+        file << "Number of Robots," << globals.NUM_ROBOTS << "\n";
+        file << "Sigma Factor MasterSlave," << formatDP(globals.SIGMA_FACTOR_MASTERSLAVE, 2) << "\n";
+        file << "Min Distance," << formatDP(globals.MIN_DISTANCE, 2) << "\n";
+        file << "Max Distance," << formatDP(globals.MAX_DISTANCE, 2) << "\n\n";
+        file << "Simulation Name," << name << "\n\n";
 
-        // Write title as the first row
-        file << title << "\n";
+        // Calculate average distance violations
+        int total_below_min_occurrences = 0;
+        int total_above_max_occurrences = 0;
+        int total_below_min_time = 0;
+        int total_above_max_time = 0;
+        int num_followers = 0;
 
-        // Write header as the second row
-        file << "Group,Average Deviation,Formation Integrity Index,Overall Average Deviation\n";
+        for (const auto &[rid, robot] : robots_)
+        {
+            if (robot->master_id_ != -1)
+            {
+                total_below_min_occurrences += robot->distance_violations_.below_min_occurrences;
+                total_above_max_occurrences += robot->distance_violations_.above_max_occurrences;
+                total_below_min_time += robot->distance_violations_.below_min_time;
+                total_above_max_time += robot->distance_violations_.above_max_time;
+                num_followers++;
+            }
+        }
 
+        double avg_below_min_occurrences = num_followers > 0 ? static_cast<double>(total_below_min_occurrences) / num_followers : 0;
+        double avg_above_max_occurrences = num_followers > 0 ? static_cast<double>(total_above_max_occurrences) / num_followers : 0;
+        double avg_below_min_time = num_followers > 0 ? static_cast<double>(total_below_min_time) / num_followers : 0;
+        double avg_above_max_time = num_followers > 0 ? static_cast<double>(total_above_max_time) / num_followers : 0;
+
+        // Write distance violation data
+        file << "Distance Violations\n";
+        file << "Metric,Total Occurrences,Total Time,Average Occurrences,Average Time\n";
+        file << "Below Minimum Distance," << total_below_min_occurrences << "," << total_below_min_time << ","
+             << formatDP(avg_below_min_occurrences, 2) << "," << formatDP(avg_below_min_time, 2) << "\n";
+        file << "Above Maximum Distance," << total_above_max_occurrences << "," << total_above_max_time << ","
+             << formatDP(avg_above_max_occurrences, 2) << "," << formatDP(avg_above_max_time, 2) << "\n";
+        file << "Combined Violations," << (total_below_min_occurrences + total_above_max_occurrences) << ","
+             << (total_below_min_time + total_above_max_time) << ","
+             << formatDP(avg_below_min_occurrences + avg_above_max_occurrences, 2) << ","
+             << formatDP(avg_below_min_time + avg_above_max_time, 2) << "\n\n";
+
+        // Write safe zone violation data
+        file << "Safe Zone Violations\n";
+        file << "Timestamp,Total Violations\n";
+        for (const auto &data : safe_zone_data_)
+        {
+            int totalViolations = std::accumulate(data.violations.begin(), data.violations.end(), 0);
+            file << data.timestamp << "," << totalViolations << "\n";
+        }
+        file << "Total Violations," << std::accumulate(safe_zone_data_.begin(), safe_zone_data_.end(), 0, [](int total, const SafeZoneViolationData &data)
+                                                       { return total + std::accumulate(data.violations.begin(), data.violations.end(), 0); })
+             << "\n\n";
+        file << "\n";
+
+        // Write formation integrity data
         FormationIntegrityData integrity_data = calculateFormationIntegrity();
-
+        file << "Formation Integrity\n";
+        file << "Group,Average Deviation,Formation Integrity Index,Overall Average Deviation\n";
         for (const auto &[group_id, data] : group_deviation_data_)
         {
             double avg_deviation = data.sample_count > 0 ? data.total_deviation / data.sample_count : 0.0;
-            file << group_id << "," << formatTwoDP(avg_deviation) << ",";
+            file << group_id << "," << formatDP(avg_deviation, 2) << ",";
             if (group_id == group_deviation_data_.begin()->first)
             {
-                file << formatTwoDP(integrity_data.integrity_index) << ","
-                     << formatTwoDP(integrity_data.overall_avg_deviation);
+                file << formatDP(integrity_data.integrity_index, 2) << ","
+                     << formatDP(integrity_data.overall_avg_deviation, 2);
             }
             file << "\n";
         }
 
-        std::cout << "Formation Integrity Data exported to " << filename << std::endl;
+        std::cout << "Consolidated data exported to " << filename << std::endl;
     }
     catch (const std::exception &e)
     {

@@ -132,7 +132,8 @@ void Robot::updateCurrent()
     // Calculate heading (assuming positive x-axis is 0 degrees)
     double current_heading = std::atan2(current_velocity.y(), current_velocity.x());
 
-    updatePathHistory();
+    if (globals.TESTING)
+        updatePathHistory();
 
     // print the increment vector for robot id 5
     // if (rid_ == 5)
@@ -424,13 +425,10 @@ bool Robot::checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &
 
 void Robot::updatePathHistory()
 {
-    if (master_id_ == -1)
-    { // Only update path history for master robots
-        path_history_.push_back(position_.head<2>());
-        if (path_history_.size() > MAX_PATH_HISTORY_SIZE)
-        {
-            path_history_.pop_front();
-        }
+    path_history_.push_back(position_.head<2>());
+    if (path_history_.size() > MAX_PATH_HISTORY_SIZE)
+    {
+        path_history_.pop_front();
     }
 }
 
@@ -468,4 +466,36 @@ double Robot::pointToLineSegmentDistance(const Eigen::Vector2d &point,
 
     Eigen::Vector2d projection = lineStart + t * line;
     return (point - projection).norm();
+}
+
+void Robot::checkAndUpdateDistanceViolations(const std::shared_ptr<Robot> &master)
+{
+    if (!master)
+        return;
+
+    double distance = (this->position_ - master->position_).norm();
+
+    bool new_below_min = distance < globals.MIN_DISTANCE;
+    bool new_above_max = distance > globals.MAX_DISTANCE;
+
+    if (new_below_min && !is_below_min_distance_)
+    {
+        distance_violations_.below_min_occurrences++;
+    }
+    if (new_above_max && !is_above_max_distance_)
+    {
+        distance_violations_.above_max_occurrences++;
+    }
+
+    if (new_below_min)
+    {
+        distance_violations_.below_min_time++;
+    }
+    if (new_above_max)
+    {
+        distance_violations_.above_max_time++;
+    }
+
+    is_below_min_distance_ = new_below_min;
+    is_above_max_distance_ = new_above_max;
 }

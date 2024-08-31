@@ -127,6 +127,20 @@ public:
 
     std::map<int, GroupDeviationData> group_deviation_data_;
 
+    struct AggregatedDistanceViolationData
+    {
+        int total_below_min_occurrences = 0;
+        int total_above_max_occurrences = 0;
+        int total_below_min_time = 0;
+        int total_above_max_time = 0;
+        int total_violation_occurrences = 0;
+        int total_violation_time = 0;
+    };
+
+    AggregatedDistanceViolationData distance_violation_data_;
+
+    void exportConsolidatedData() const;
+
 private:
     struct SafeZoneViolationData
     {
@@ -135,7 +149,6 @@ private:
     };
     std::vector<SafeZoneViolationData> safe_zone_data_;
 
-    void exportSafeZoneData() const;
     void logSafeZoneViolation();
 
     struct FormationIntegrityData
@@ -145,6 +158,5 @@ private:
     };
 
     FormationIntegrityData calculateFormationIntegrity() const;
-    void exportFormationIntegrityData() const;
     void logPathDeviation();
 };

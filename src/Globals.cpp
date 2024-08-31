@@ -51,9 +51,10 @@ void Globals::parse_global_args(std::ifstream &config_file)
 
     NUM_ITERS = j["NUM_ITERS"];
     ROGUE_AGENTS = static_cast<bool>((int)j["ROGUE_AGENTS"]);
+    TESTING = static_cast<bool>((int)j["TESTING"]);
 }
 
-Globals::Globals(){};
+Globals::Globals() {};
 
 /*****************************************************************/
 // Allows for parsing of an external config file
