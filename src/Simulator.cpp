@@ -119,7 +119,7 @@ void Simulator::draw()
                     static_cast<float>(master_robot->second->height_3D_),
                     static_cast<float>(master_robot->second->position_(1))};
                 // print distance
-                std::cout << "Distance between " << rid << " and " << robot->master_id_ << " is " << (robot->position_.head<2>() - master_robot->second->position_.head<2>()).norm() << std::endl;
+                // std::cout << "Distance between " << rid << " and " << robot->master_id_ << " is " << (robot->position_.head<2>() - master_robot->second->position_.head<2>()).norm() << std::endl;
                 DrawLine3D(slave_position, master_position, DARKGRAY);
             }
         }
@@ -195,10 +195,12 @@ void Simulator::updateRobotsFromRadar()
             if (vel_it != velocities.end())
             {
                 updateRobotPosition(robot_id, coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
+                last_coords[robot_id] = Eigen::Vector4d(coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
             }
             else
             {
                 updateRobotPosition(robot_id, coord.x(), coord.y(), 0.0, 0.0);
+                last_coords[robot_id] = Eigen::Vector4d(coord.x(), coord.y(), 0.0, 0.0);
             }
             std::string server_id = radar.getServerIdForHost(host_id);
         }
@@ -218,6 +220,7 @@ void Simulator::updateRobotsFromRadar()
             {
                 const auto &position = it->second;
                 updateRobotPosition(robot_id, position[0], position[1], position[2], position[3]);
+                last_coords[robot_id] = Eigen::Vector4d(position[0], position[1], position[2], position[3]);
             }
         }
     }
@@ -272,11 +275,30 @@ std::vector<std::tuple<double, double, double, double, double, double, double, s
             std::string host_id = getHostIdForRobot(rid);
             if (!host_id.empty())
             {
+                double x, y, vx, vy;
+                auto last_coord_it = last_coords.find(rid);
+                if (last_coord_it != last_coords.end())
+                {
+                    const auto &last_coord = last_coord_it->second;
+                    x = last_coord(0);
+                    y = last_coord(1);
+                    vx = last_coord(2);
+                    vy = last_coord(3);
+                }
+                else
+                {
+                    // Fallback to robot's current position if not in last_coords
+                    x = robot->position_(0);
+                    y = robot->position_(1);
+                    vx = robot->position_(2);
+                    vy = robot->position_(3);
+                }
+
                 values.push_back(std::make_tuple(
-                    robot->position_(0),    // x position
-                    robot->position_(1),    // y position
-                    robot->position_(2),    // x velocity
-                    robot->position_(3),    // y velocity
+                    x,                      // x position
+                    y,                      // y position
+                    vx,                     // x velocity
+                    vy,                     // y velocity
                     std::get<0>(robotData), // last_acceleration_
                     std::get<1>(robotData), // last_turn_angle_
                     std::get<2>(robotData), // last_next_speed_
@@ -430,7 +452,10 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         }
 
         double required_speed_mph = required_speed_mps * 2.23694;
-
+        if (robot_override_cruise_control)
+        {
+            printf("Robot %s overriding cruise control with speed %f\n", host_id.c_str(), next_speed * 2.23694);
+        }
         nlohmann::json json_data = {
             {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed * 2.23694}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}}},
             {"all_trucks_data", all_trucks_data}};

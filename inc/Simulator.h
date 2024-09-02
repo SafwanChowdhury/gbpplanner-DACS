@@ -172,4 +172,5 @@ private:
     int next_robot_id = 1;
     bool override_cruise_control = false;
     std::set<int> missing_robots;
+    std::map<int, Eigen::Vector4d> last_coords;
 };

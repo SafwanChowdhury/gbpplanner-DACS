@@ -471,9 +471,9 @@ void Robot::updateMasterSlaveFactors()
 /*******************************************************************************************/
 std::tuple<double, double, double> Robot::getData() const
 {
-    if (rid_ == 2)
-    {
-        std::cout << "Next Speed: " << last_next_speed_ * 2.23694 << " mph" << std::endl;
-    }
+    // if (rid_ == 2)
+    // {
+    //     std::cout << "Next Speed: " << last_next_speed_ * 2.23694 << " mph" << std::endl;
+    // }
     return std::make_tuple(last_acceleration_, last_turn_angle_, last_next_speed_);
 }
