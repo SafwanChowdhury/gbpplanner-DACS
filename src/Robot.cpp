@@ -131,8 +131,8 @@ void Robot::updateCurrent()
     Eigen::VectorXd increment = ((*this)[1]->mu_ - (*this)[0]->mu_) * globals.TIMESTEP / globals.T0;
 
     // Calculate forward acceleration and turn angle
-    Eigen::Vector2d current_velocity = (*this)[0]->mu_.segment<2>(2);
-    Eigen::Vector2d next_velocity = (*this)[1]->mu_.segment<2>(2);
+    Eigen::Vector2d current_velocity = (*this)[1]->mu_.segment<2>(2);
+    Eigen::Vector2d next_velocity = (*this)[2]->mu_.segment<2>(2);
     double current_speed = current_velocity.norm();
     last_next_speed_ = next_velocity.norm();
 
