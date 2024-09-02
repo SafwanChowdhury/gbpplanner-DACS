@@ -34,6 +34,7 @@ struct TruckData
     double vx;
     double vy;
 };
+
 /************************************************************************************/
 // The main Simulator. This is where the magic happens.
 /************************************************************************************/
@@ -150,6 +151,17 @@ public:
     int mapHostToRobot(const std::string &host_id);
     std::string getHostIdForRobot(int robot_id) const;
     void printRouteTimes();
+
+    struct SimulationData
+    {
+        int time_step;
+        std::vector<std::tuple<int, int, double, double, double>> robot_data;
+    };
+
+    std::vector<SimulationData> simulation_data;
+
+    void collectSimulationData();
+    void exportSimulationData();
 
 private:
     std::map<int, TruckData> receivedTruckData;

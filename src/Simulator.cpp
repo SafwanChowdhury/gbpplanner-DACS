@@ -67,6 +67,7 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
 /*******************************************************************************/
 Simulator::~Simulator()
 {
+    exportSimulationData();
     delete treeOfRobots_;
     int n = robots_.size();
     for (int i = 0; i < n; ++i)
@@ -474,6 +475,7 @@ void Simulator::timestep()
         {
 
             robot->updateInterrobotFactors();
+            robot->updateMasterSlaveFactors();
         }
     }
 
@@ -511,6 +513,7 @@ void Simulator::timestep()
     {
         sendIterationValues(iterationValues);
     }
+    collectSimulationData();
     // Increase simulation clock by one timestep
     clock_++;
     if (clock_ >= globals.MAX_TIME)
@@ -836,4 +839,63 @@ void Simulator::deleteRobot(std::shared_ptr<Robot> robot)
     }
     robots_.erase(robot->rid_);
     robot_positions_.erase(robot->rid_);
+}
+
+/*******************************************************************************/
+// Testing Functions
+/*******************************************************************************/
+void Simulator::collectSimulationData()
+{
+    SimulationData data;
+    data.time_step = clock_;
+
+    for (const auto &[rid, robot] : robots_)
+    {
+        if (robot->master_id_ != -1)
+        {
+            auto master_robot = robots_.find(robot->master_id_);
+            if (master_robot != robots_.end())
+            {
+                // Calculate distance
+                double distance = (robot->position_.head<2>() - master_robot->second->position_.head<2>()).norm();
+
+                // Collect data
+                data.robot_data.push_back(std::make_tuple(
+                    robot->master_id_,
+                    rid,
+                    master_robot->second->last_next_speed_,
+                    robot->last_next_speed_,
+                    distance));
+
+                std::cout << "Data collected for master-slave pair: " << robot->master_id_ << "-" << rid
+                          << ", Distance: " << distance << std::endl;
+            }
+        }
+    }
+
+    simulation_data.push_back(data);
+    std::cout << "collectSimulationData called. Time step: " << clock_
+              << ", Number of master-slave pairs in data: " << data.robot_data.size() << std::endl;
+}
+
+void Simulator::exportSimulationData()
+{
+    std::ofstream outFile("simulation_data.csv");
+    outFile << "TimeStep,MasterID,SlaveID,MasterNextSpeed,SlaveNextSpeed,Distance\n";
+
+    for (const auto &step_data : simulation_data)
+    {
+        for (const auto &[master_id, slave_id, master_next_speed, slave_next_speed, distance] : step_data.robot_data)
+        {
+            outFile << step_data.time_step << ","
+                    << master_id << ","
+                    << slave_id << ","
+                    << master_next_speed << ","
+                    << slave_next_speed << ","
+                    << distance << "\n";
+        }
+    }
+
+    outFile.close();
+    std::cout << "Simulation data exported to simulation_data.csv" << std::endl;
 }

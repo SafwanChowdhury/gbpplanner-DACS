@@ -437,6 +437,35 @@ void Robot::createMasterSlaveFactors()
     }
 }
 
+void Robot::updateMasterSlaveFactors()
+{
+    if (isMaster_ || master_id_ == -1)
+        return; // Only slave robots should update master-slave factors
+
+    std::shared_ptr<Robot> master_robot = sim_->robots_.at(master_id_);
+
+    // Delete existing master-slave factors
+    std::vector<Key> factors_to_delete;
+    for (auto &[f_key, fac] : factors_)
+    {
+        if (fac->factor_type_ == MASTER_SLAVE_FACTOR)
+        {
+            factors_to_delete.push_back(f_key);
+            for (auto &var : fac->variables_)
+            {
+                var->delete_factor(f_key);
+            }
+        }
+    }
+    for (auto &key : factors_to_delete)
+    {
+        factors_.erase(key);
+    }
+
+    // Recreate master-slave factors
+    createMasterSlaveFactors();
+}
+
 /*******************************************************************************************/
 // Get the data from the robot (acceleration, turn angle, next speed)
 /*******************************************************************************************/
