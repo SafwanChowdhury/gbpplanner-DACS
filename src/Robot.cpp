@@ -149,7 +149,7 @@ void Robot::updateCurrent()
         last_turn_angle_ -= 360.0;
     while (last_turn_angle_ < -180.0)
         last_turn_angle_ += 360.0;
-
+    last_next_speed_ = last_next_speed_ * 2.23694; // Convert to mph
     // In GBP we do this by modifying the prior on the variable
     getVar(0)->change_variable_prior(getVar(0)->mu_ + increment);
 
