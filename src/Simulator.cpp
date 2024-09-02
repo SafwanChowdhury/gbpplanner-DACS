@@ -623,118 +623,6 @@ void Simulator::eventHandler()
     graphics->update_camera();
 }
 
-struct HighwayWaypoints
-{
-    Eigen::VectorXd lane_start;
-    Eigen::VectorXd lane_end;
-    Eigen::VectorXd on_ramp_start;
-    Eigen::VectorXd on_ramp_merge;
-    Eigen::VectorXd off_ramp_start;
-    Eigen::VectorXd off_ramp_merge;
-};
-
-// Function to pre-calculate waypoints for the highway configuration
-std::unordered_map<int, std::vector<std::pair<HighwayWaypoints, HighwayWaypoints>>> calculateHighwayWaypoints()
-{
-    std::unordered_map<int, std::vector<std::pair<HighwayWaypoints, HighwayWaypoints>>> highwayWaypoints;
-    int n_roads = 2; // Number of roads in the highway configuration
-    int n_lanes = 2;
-    double lane_width = 8.0 * globals.ROBOT_RADIUS;
-    double road_spacing = globals.WORLD_SZ / 4.6;
-    double road_length = globals.WORLD_SZ;
-
-    double ramp_length;
-    double ramp_angle;
-    double ramp_length_off;
-    double ramp_angle_off;
-
-    double on_ramp_start_pos;
-    double on_ramp_end_pos;
-    double off_ramp_start_pos;
-    double off_ramp_end_pos;
-
-    if (globals.FORMATION == "highway-pair")
-    {
-        ramp_length = road_length / 3;     // Length of on/off ramps
-        ramp_angle = M_PI / 2;             // Angle of the ramps to the road
-        ramp_length_off = road_length / 4; // Length of on/off ramps
-        ramp_angle_off = M_PI / 2;         // Angle of the ramps to the road
-
-        // Ramp positions as variables
-        on_ramp_start_pos = -road_length / 2;
-        on_ramp_end_pos = road_length / 40;
-        off_ramp_start_pos = -on_ramp_end_pos;
-        off_ramp_end_pos = road_length / 2;
-    }
-    else
-    {
-        ramp_length = road_length / 5.3;
-        ramp_angle = M_PI / 3.1;
-        ramp_length_off = road_length / 7.8;
-        ramp_angle_off = M_PI / 4.5;
-
-        on_ramp_start_pos = -road_length / 2.5;
-        on_ramp_end_pos = -road_length / 3.7;
-        off_ramp_start_pos = road_length / 3.7;
-        off_ramp_end_pos = road_length / 2.5;
-    }
-    for (int group = 0; group < 4; ++group)
-    {
-        int road = group % 2;
-        double road_v_offset = (road - 0.325) * road_spacing;
-
-        for (int lane = 0; lane < n_lanes; ++lane)
-        {
-            double lane_v_offset = road_v_offset + (0.5 * (1 - 2.0 * n_lanes) + lane) * lane_width;
-
-            double on_ramp_start_x, on_ramp_start_y, on_ramp_merge_x, on_ramp_merge_y;
-            double off_ramp_start_x, off_ramp_start_y, off_ramp_merge_x, off_ramp_merge_y;
-
-            // Normal waypoints
-            on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
-            on_ramp_start_y = lane_v_offset - ramp_length * sin(ramp_angle) + lane_width;
-            on_ramp_merge_x = on_ramp_end_pos;
-            on_ramp_merge_y = lane_v_offset;
-
-            off_ramp_start_x = off_ramp_start_pos;
-            off_ramp_start_y = lane_v_offset;
-            off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
-            off_ramp_merge_y = lane_v_offset - ramp_length_off * sin(ramp_angle_off) - lane_width;
-
-            HighwayWaypoints normal_waypoints = {
-                Eigen::VectorXd{{-road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}}};
-
-            // Flipped waypoints
-            on_ramp_start_x = on_ramp_start_pos - ramp_length * cos(ramp_angle);
-            on_ramp_start_y = lane_v_offset + ramp_length * sin(ramp_angle) - lane_width;
-            on_ramp_merge_x = on_ramp_end_pos;
-            on_ramp_merge_y = lane_v_offset;
-
-            off_ramp_start_x = off_ramp_start_pos;
-            off_ramp_start_y = lane_v_offset;
-            off_ramp_merge_x = off_ramp_end_pos + ramp_length_off * cos(ramp_angle_off);
-            off_ramp_merge_y = lane_v_offset + ramp_length_off * sin(ramp_angle_off) + lane_width;
-
-            HighwayWaypoints flipped_waypoints = {
-                Eigen::VectorXd{{-road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{road_length / 2.0, lane_v_offset, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{on_ramp_start_x, on_ramp_start_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{on_ramp_merge_x, on_ramp_merge_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{off_ramp_start_x, off_ramp_start_y, globals.MAX_SPEED, 0.0}},
-                Eigen::VectorXd{{off_ramp_merge_x, off_ramp_merge_y, globals.MAX_SPEED, 0.0}}};
-
-            highwayWaypoints[group].emplace_back(normal_waypoints, flipped_waypoints);
-        }
-    }
-
-    return highwayWaypoints;
-}
-
 /*******************************************************************************/
 // Create new robots if needed. Handles deletion of robots out of bounds.
 // New formations must modify the vectors "robots to create" and optionally "robots_to_delete"
@@ -770,7 +658,22 @@ void Simulator::createOrDeleteRobots()
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
 
-                int group_id = (i % 2 == 0) ? 2 : 1; // Even robots to group 2, odd to group 1
+                int master_id;
+                bool isMaster;
+                int group_id;
+
+                if (i == 1)
+                {
+                    master_id = -1;
+                    isMaster = true;
+                    group_id = 1;
+                }
+                else
+                {
+                    master_id = i - 1;
+                    isMaster = false;
+                    group_id = 2;
+                }
 
                 if (group_id == 2)
                 {
@@ -788,20 +691,6 @@ void Simulator::createOrDeleteRobots()
                 float robot_radius = globals.ROBOT_RADIUS;
                 Color robot_color = (group_id == 2) ? DARKBROWN : DARKBLUE; // Group 2: DARKBROWN, Group 1: DARKBLUE
 
-                int master_id;
-                bool isMaster;
-                if (i == 1)
-                {
-                    master_id = -1;
-                    isMaster = true;
-                    group_id = 1;
-                }
-                else
-                {
-                    master_id = i - 1;
-                    isMaster = false;
-                    group_id = 2;
-                }
                 robots_to_create.push_back(std::make_shared<Robot>(
                     this, i, waypoints, robot_radius, robot_color, isMaster, master_id, group_id));
             }
@@ -867,15 +756,15 @@ void Simulator::collectSimulationData()
                     robot->last_next_speed_,
                     distance));
 
-                std::cout << "Data collected for master-slave pair: " << robot->master_id_ << "-" << rid
-                          << ", Distance: " << distance << std::endl;
+                // std::cout << "Data collected for master-slave pair: " << robot->master_id_ << "-" << rid
+                //           << ", Distance: " << distance << std::endl;
             }
         }
     }
 
     simulation_data.push_back(data);
-    std::cout << "collectSimulationData called. Time step: " << clock_
-              << ", Number of master-slave pairs in data: " << data.robot_data.size() << std::endl;
+    // std::cout << "collectSimulationData called. Time step: " << clock_
+    //           << ", Number of master-slave pairs in data: " << data.robot_data.size() << std::endl;
 }
 
 void Simulator::exportSimulationData()
