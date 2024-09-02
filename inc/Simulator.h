@@ -159,4 +159,5 @@ private:
     std::map<int, std::string> robot_to_host_map;
     int next_robot_id = 1;
     bool override_cruise_control = false;
+    std::set<int> missing_robots;
 };

@@ -34,7 +34,9 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         position_sender.loadPositions();
-        position_sender.setStartingIndex(1, 10);      // Set starting index for sending positions
+        position_sender.setStartingIndex(1, 70); // Set starting index for sending positions
+        position_sender.setStartingIndex(2, 60); // Set starting index for sending positions
+
         position_sender.setRobotFailurePoint(2, 110); // Set failure points for specific robots if needed
 
         position_sender.startSendingPositions();
@@ -141,8 +143,6 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
         // Update position only if the robot hasn't failed
         robot->position_ = Eigen::Vector4d(x, y, vx, vy);
     }
-
-    handleWaypointsAndMergePoints(robot, robotIndex);
 }
 
 void Simulator::handleWaypointsAndMergePoints(std::shared_ptr<Robot> &robot, int robotIndex)
@@ -209,6 +209,7 @@ void Simulator::updateRobotsFromRadar()
         {
             if (positions.find(robot_id) == positions.end())
             {
+                missing_robots.insert(robot_id);
                 continue;
             }
             auto it = positions.find(robot_id);
@@ -455,6 +456,11 @@ void Simulator::timestep()
         return;
 
     updateRobotsFromRadar(); // Update the robots' positions from the radar
+
+    for (auto &[rid, robot] : robots_)
+    {
+        handleWaypointsAndMergePoints(robot, rid);
+    }
 
     // printRouteTimes();
 
@@ -767,7 +773,6 @@ void Simulator::createOrDeleteRobots()
                 {
                     waypoints.push_back(initialPosition);
                     waypoints.push_back(waypoint2);
-                    waypoints.push_back(waypoint4);
                 }
                 else
                 {
@@ -786,13 +791,14 @@ void Simulator::createOrDeleteRobots()
                 {
                     master_id = -1;
                     isMaster = true;
+                    group_id = 1;
                 }
                 else
                 {
                     master_id = i - 1;
                     isMaster = false;
+                    group_id = 2;
                 }
-
                 robots_to_create.push_back(std::make_shared<Robot>(
                     this, i, waypoints, robot_radius, robot_color, isMaster, master_id, group_id));
             }
