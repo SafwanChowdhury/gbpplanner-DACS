@@ -25,6 +25,8 @@ public:
     void setRobotFailurePoint(int robot_id, int failure_point);
     void clearRobotFailurePoint(int robot_id);
     bool isRobotFailed(int robot_id) const;
+    std::map<int, size_t> start_indices;
+    void setStartingIndex(int robot_id, size_t starting_index);
 
 private:
     const std::string TRUCK1_WAYPOINTS_FILE = "../assets/scripts/Truck1Waypoints.txt";

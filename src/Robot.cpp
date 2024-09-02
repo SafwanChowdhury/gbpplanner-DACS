@@ -16,13 +16,20 @@ Robot::Robot(Simulator *sim,
              int rid,
              std::deque<Eigen::VectorXd> waypoints,
              float size,
-             Color color) : FactorGraph{rid},
-                            sim_(sim), rid_(rid),
-                            waypoints_(waypoints),
-                            robot_radius_(size), color_(color),
-                            last_acceleration_(0.0),
-                            last_turn_angle_(0.0),
-                            last_next_speed_(0.0)
+             Color color,
+             bool isMaster,
+             int master_id,
+             int group_id) : FactorGraph{rid},
+                             sim_(sim), rid_(rid),
+                             waypoints_(waypoints),
+                             robot_radius_(size),
+                             color_(color),
+                             isMaster_(isMaster),
+                             master_id_(master_id),
+                             group_id_(group_id),
+                             last_acceleration_(0.0),
+                             last_turn_angle_(0.0),
+                             last_next_speed_(0.0)
 {
 
     height_3D_ = robot_radius_; // Height out of plane for 3d visualisation only
@@ -405,14 +412,39 @@ std::vector<int> Robot::getVariableTimesteps(int lookahead_horizon, int lookahea
     return var_list;
 };
 
+/***************************************************************************************************/
+// Create master-slave factors between this robot (slave) and its designated master
+/***************************************************************************************************/
+void Robot::createMasterSlaveFactors()
+{
+    std::shared_ptr<Robot> master_robot = sim_->robots_.at(master_id_);
+    // Create MasterSlave factors for all timesteps excluding current state
+    for (int i = 1; i < num_variables_; i++)
+    {
+        // Get variables
+        std::vector<std::shared_ptr<Variable>> variables{getVar(i), master_robot->getVar(i)};
+
+        // Create the master-slave factor
+        Eigen::VectorXd z = Eigen::VectorXd::Zero(1);
+
+        auto factor = std::make_shared<MasterSlaveFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_MASTERSLAVE, z, globals.MIN_DISTANCE, globals.MAX_DISTANCE);
+        factor->other_rid_ = master_robot->rid_;
+
+        // Add factor to the variable's list of factors, as well as to the robot's list of factors
+        for (auto var : factor->variables_)
+            var->add_factor(factor);
+        this->factors_[factor->key_] = factor;
+    }
+}
+
 /*******************************************************************************************/
 // Get the data from the robot (acceleration, turn angle, next speed)
 /*******************************************************************************************/
 std::tuple<double, double, double> Robot::getData() const
 {
-    // if (rid_ == 1)
-    // {
-    //     std::cout << "Robot 1: Acceleration: " << last_acceleration_ << ", Turn Angle: " << last_turn_angle_ << ", Next Speed: " << last_next_speed_ * 2.23694 << " mph" << std::endl;
-    // }
+    if (rid_ == 2)
+    {
+        std::cout << "Next Speed: " << last_next_speed_ * 2.23694 << " mph" << std::endl;
+    }
     return std::make_tuple(last_acceleration_, last_turn_angle_, last_next_speed_);
 }

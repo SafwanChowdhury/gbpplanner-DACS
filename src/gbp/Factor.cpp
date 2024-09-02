@@ -6,7 +6,7 @@
 #include <gbp/GBPCore.h>
 #include <gbp/Factor.h>
 #include <gbp/Variable.h>
-
+#include <Robot.h>
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <raylib.h>
@@ -342,3 +342,36 @@ Eigen::MatrixXd ObstacleFactor::h_func_(const Eigen::VectorXd &X)
     h(0) = c_hsv.z;
     return h;
 };
+
+/********************************************************************************************/
+// Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
+// within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
+/********************************************************************************************/
+
+MasterSlaveFactor::MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
+                                     float sigma, const Eigen::VectorXd &measurement, float min_distance, float max_distance)
+    : Factor(f_id, r_id, variables, sigma, measurement)
+{
+    factor_type_ = MASTER_SLAVE_FACTOR;
+    this->min_distance_ = min_distance;
+    this->max_distance_ = max_distance;
+}
+
+Eigen::MatrixXd MasterSlaveFactor::h_func_(const Eigen::VectorXd &X)
+{
+    Eigen::MatrixXd h = Eigen::MatrixXd::Zero(1, 1);
+    h(0) = (X({0, 1}) - X({4, 5})).norm();
+    if (h(0) > max_distance_)
+        h(0) = max_distance_; // Energy is capped if within max distance
+    if (h(0) < min_distance_)
+        h(0) = min_distance_ - h(0); // Negative energy if too close
+    return h;
+}
+
+Eigen::MatrixXd MasterSlaveFactor::J_func_(const Eigen::VectorXd &X)
+{
+    Eigen::MatrixXd J = jacobianFirstOrder(X);
+    J.col(4) = Eigen::VectorXd::Zero(0);
+    J.col(5) = Eigen::VectorXd::Zero(0);
+    return J;
+}

@@ -142,6 +142,7 @@ public:
     PositionSender position_sender;
 
     void updateRobotsFromRadar();
+    void handleWaypointsAndMergePoints(std::shared_ptr<Robot> &robot, int robotIndex);
     std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> getIterationValues() const;
     void sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values);
     void updateReceivedTruckData(int rid, double x, double y, double vx, double vy);

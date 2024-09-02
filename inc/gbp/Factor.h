@@ -25,8 +25,12 @@ enum FactorType
     DEFAULT_FACTOR,
     DYNAMICS_FACTOR,
     INTERROBOT_FACTOR,
-    OBSTACLE_FACTOR
+    OBSTACLE_FACTOR,
+    MASTER_SLAVE_FACTOR
 };
+
+class Simulator;
+class Robot;
 /*****************************************************************************************/
 // Factor used in GBP
 /*****************************************************************************************/
@@ -134,4 +138,19 @@ public:
                    float sigma, const Eigen::VectorXd &measurement, Image *p_obstacleImage);
 
     Eigen::MatrixXd h_func_(const Eigen::VectorXd &X);
+};
+
+/********************************************************************************************/
+// Master-Slave factor for the master-slave robot system in the scene. This factor is used to keep the slave robot
+// within a certain distance from the master robot. The factor has 0 energy if the slave robot is within the specified distance.
+/********************************************************************************************/
+class MasterSlaveFactor : public Factor
+{
+public:
+    MasterSlaveFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
+                      float sigma, const Eigen::VectorXd &measurement, float min_distance, float max_distance);
+    float min_distance_;
+    float max_distance_;
+    Eigen::MatrixXd h_func_(const Eigen::VectorXd &X);
+    Eigen::MatrixXd J_func_(const Eigen::VectorXd &X);
 };

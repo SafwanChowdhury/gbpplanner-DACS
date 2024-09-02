@@ -32,7 +32,10 @@ public:
           int rid,
           std::deque<Eigen::VectorXd> waypoints,
           float size,
-          Color color);
+          Color color,
+          bool isMaster,
+          int master_id,
+          int group_id);
     ~Robot();
 
     Simulator *sim_;                          // Pointer to the simulator
@@ -42,6 +45,9 @@ public:
     Color color_ = DARKGREEN;                 // Colour of robot
     bool has_merged_ = false;
     bool override_cruise_control_ = false;
+    bool isMaster_ = false; // True if the robot is a master, false if it is a slave
+    int master_id_ = -1;    // The id of the master robot this robot is connected to
+    int group_id_ = 0;      // The group id of the robot (used for differentiating between groups of robots)
 
     int num_variables_;                  // Number of variables in the planned path (assumed to be the same for all robots)
     std::vector<int> connected_r_ids_{}; // List of robot ids that are currently connected via inter-robot factors to this robot
@@ -69,6 +75,7 @@ public:
     void createInterrobotFactors(std::shared_ptr<Robot> other_robot);
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
 
+    void createMasterSlaveFactors();
     /***************************************************************************************************/
     // Drawing function
     /***************************************************************************************************/

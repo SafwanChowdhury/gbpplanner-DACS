@@ -34,7 +34,8 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         position_sender.loadPositions();
-        // position_sender.setRobotFailurePoint(1, 50); // Set failure points for specific robots if needed
+        position_sender.setStartingIndex(1, 10);      // Set starting index for sending positions
+        position_sender.setRobotFailurePoint(2, 110); // Set failure points for specific robots if needed
 
         position_sender.startSendingPositions();
     }
@@ -98,7 +99,28 @@ void Simulator::draw()
     DrawModel(graphics->groundModel_, graphics->groundModelpos_, 1., WHITE);
     // Draw Robots
     for (auto [rid, robot] : robots_)
+    {
         robot->draw();
+        if (!robot->isMaster_)
+        {
+            auto master_robot = robots_.find(robot->master_id_);
+            if (master_robot != robots_.end())
+            {
+                // Cast positions to float explicitly
+                Vector3 slave_position = {
+                    static_cast<float>(robot->position_(0)),
+                    static_cast<float>(robot->height_3D_),
+                    static_cast<float>(robot->position_(1))};
+                Vector3 master_position = {
+                    static_cast<float>(master_robot->second->position_(0)),
+                    static_cast<float>(master_robot->second->height_3D_),
+                    static_cast<float>(master_robot->second->position_(1))};
+                // print distance
+                std::cout << "Distance between " << rid << " and " << robot->master_id_ << " is " << (robot->position_.head<2>() - master_robot->second->position_.head<2>()).norm() << std::endl;
+                DrawLine3D(slave_position, master_position, DARKGRAY);
+            }
+        }
+    }
     EndMode3D();
     draw_info(clock_);
     EndDrawing();
@@ -118,44 +140,44 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
     {
         // Update position only if the robot hasn't failed
         robot->position_ = Eigen::Vector4d(x, y, vx, vy);
-        // if (robot->rid_ == 1)
-        // {
-        //     std::cout << "Robot 1 position: " << robot->position_.transpose() << " Robot 1 Velocity: " << vx * -2.23694 << " " << vy << std::endl;
-        // }
     }
 
-    if (robotIndex == 1 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
-    {
-        // Check if Robot 1 has reached its merge point (second waypoint)
-        Eigen::Vector2d mergePoint = robot->waypoints_[1].head<2>();
-        double distance = (robot->position_.head<2>() - mergePoint).norm();
-        if (distance <= 10)
-        {
-            // Robot 1 has reached the merge point
-            // robot->waypoints_.pop_back(); // Remove the merge point waypoint
-            robot->waypoints_.erase(robot->waypoints_.begin() + 1);
-            robot->has_merged_ = true; // Set a flag to indicate that Robot 1 has merged
-            robot->override_cruise_control_ = true;
-        }
-    }
+    handleWaypointsAndMergePoints(robot, robotIndex);
+}
 
+void Simulator::handleWaypointsAndMergePoints(std::shared_ptr<Robot> &robot, int robotIndex)
+{
     // Update first waypoint to current position
     if (!robot->waypoints_.empty())
     {
         robot->waypoints_.front() = robot->position_;
     }
 
-    // Special handling for Robot 1 after it has merged
-    if (robotIndex == 1 && robot->has_merged_)
+    if (robot->group_id_ == 2 && robot->waypoints_.size() >= 2 && !robot->has_merged_)
     {
-        auto leaderIt = robots_.find(2);
-        if (leaderIt != robots_.end())
+        // Check if Group 2 robot has reached its merge point (second waypoint)
+        Eigen::Vector2d mergePoint = robot->waypoints_[1].head<2>();
+        double distance = (robot->position_.head<2>() - mergePoint).norm();
+        if (distance <= 10)
+        {
+            // Group 2 robot has reached the merge point
+            robot->waypoints_.erase(robot->waypoints_.begin() + 1);
+            robot->has_merged_ = true; // Set a flag to indicate that the robot has merged
+            robot->override_cruise_control_ = true;
+        }
+    }
+
+    // Special handling for robots after they have merged
+    if (robot->has_merged_ && robot->master_id_ != -1)
+    {
+        auto masterIt = robots_.find(robot->master_id_);
+        if (masterIt != robots_.end())
         {
             // Clear existing waypoints of the follower
             robot->waypoints_.clear();
-            // Add the current position and leader's position as waypoints
+            // Add the current position and master's position as waypoints
             robot->waypoints_.push_back(robot->position_);
-            robot->waypoints_.push_back(leaderIt->second->position_);
+            robot->waypoints_.push_back(masterIt->second->position_);
         }
     }
 }
@@ -185,6 +207,10 @@ void Simulator::updateRobotsFromRadar()
         auto positions = position_sender.getLatestPositions();
         for (const auto &[robot_id, _] : robots_)
         {
+            if (positions.find(robot_id) == positions.end())
+            {
+                continue;
+            }
             auto it = positions.find(robot_id);
             if (it != positions.end())
             {
@@ -238,20 +264,27 @@ std::vector<std::tuple<double, double, double, double, double, double, double, s
     std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> values;
     for (const auto &[rid, robot] : robots_)
     {
-        auto robotData = robot->getData();
-        std::string host_id = getHostIdForRobot(rid);
-        if (!host_id.empty())
+        try
         {
-            values.push_back(std::make_tuple(
-                robot->position_(0),    // x position
-                robot->position_(1),    // y position
-                robot->position_(2),    // x velocity
-                robot->position_(3),    // y velocity
-                std::get<0>(robotData), // last_acceleration_
-                std::get<1>(robotData), // last_turn_angle_
-                std::get<2>(robotData), // last_next_speed_
-                host_id                 // unique identifier (host ID)
-                ));
+            auto robotData = robot->getData();
+            std::string host_id = getHostIdForRobot(rid);
+            if (!host_id.empty())
+            {
+                values.push_back(std::make_tuple(
+                    robot->position_(0),    // x position
+                    robot->position_(1),    // y position
+                    robot->position_(2),    // x velocity
+                    robot->position_(3),    // y velocity
+                    std::get<0>(robotData), // last_acceleration_
+                    std::get<1>(robotData), // last_turn_angle_
+                    std::get<2>(robotData), // last_next_speed_
+                    host_id                 // unique identifier (host ID)
+                    ));
+            }
+        }
+        catch (const std::exception &e)
+        {
+            continue;
         }
     }
     return values;
@@ -441,7 +474,7 @@ void Simulator::timestep()
     // Update planned paths for all robots
     for (auto &[rid, robot] : robots_)
     {
-        if (robot)
+        if (robot && !position_sender.isRobotFailed(rid))
         {
             robot->updatePlannedPath();
         }
@@ -472,7 +505,6 @@ void Simulator::timestep()
     {
         sendIterationValues(iterationValues);
     }
-
     // Increase simulation clock by one timestep
     clock_++;
     if (clock_ >= globals.MAX_TIME)
@@ -708,71 +740,7 @@ void Simulator::createOrDeleteRobots()
     std::vector<std::shared_ptr<Robot>> robots_to_delete{};
     Eigen::VectorXd starting, turning, ending; // Waypoints : [x,y,xdot,ydot].
     int num_robots = globals.USE_RADAR ? radar.getServerCount() : globals.NUM_ROBOTS;
-    if (globals.FORMATION == "highway-pair")
-    {
-        auto highwayWaypoints = calculateHighwayWaypoints();
-        // Add this counter at the beginning of your code
-        new_robots_needed_ = true;
-        // Robot count and time
-        if (clock_ % 20 == 0 && next_rid_ < 3) // Create 1 leader, 1 follower, and 1 additional robot
-        {
-            bool travel_on_highway = false; // Assuming a single road without highway conditions
-            int lane = random_int(0, 1);    // Assuming only one lane
-            bool flip_ramps = false;        // No need to flip ramps for a single road
-
-            auto waypoints = highwayWaypoints[0][lane];
-            auto &selected_waypoints = waypoints.first; // Choose the first set of waypoints
-
-            std::deque<Eigen::VectorXd> waypoints_leader;
-            waypoints_leader.push_back(selected_waypoints.lane_start);
-            waypoints_leader.push_back(selected_waypoints.on_ramp_merge);
-            waypoints_leader.push_back(selected_waypoints.lane_end);
-
-            float robot_radius = globals.ROBOT_RADIUS;
-            Color leader_color = GREEN;          // Assign color for the leader
-            Color follower_color = GREEN;        // Assign color for the follower
-            Color additional_robot_color = BLUE; // Assign a distinct color for the additional robot
-
-            // Create the leader robot
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_leader, robot_radius, leader_color));
-
-            // Create the follower robot
-            Eigen::VectorXd starting_position = selected_waypoints.lane_start; // Starting position for the follower
-            std::deque<Eigen::VectorXd> waypoints_follower{starting_position, starting_position};
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_follower, robot_radius, follower_color));
-
-            // Create the additional robot
-            std::deque<Eigen::VectorXd> waypoints_additional_robot;
-            waypoints_additional_robot.push_back(selected_waypoints.on_ramp_start);
-            waypoints_additional_robot.push_back(selected_waypoints.on_ramp_merge);
-            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints_additional_robot, robot_radius, additional_robot_color));
-        }
-
-        if (!robots_.empty())
-        {
-            // Update the follower robots to follow the node in front of them
-            auto leader = robots_.at(0);           // Assuming the leader is at index 0
-            auto follower = robots_.at(1);         // Assuming the follower is at index 1
-            auto additional_robot = robots_.at(2); // Assuming the additional robot is at index 2
-
-            Eigen::VectorXd offset_from_target = Eigen::VectorXd::Zero(4); // Adjust the dimension if necessary
-            follower->waypoints_[0] = leader->position_ - offset_from_target;
-
-            // Check if the leader has passed the second waypoint
-            if (leader->waypoints_.size() < 2)
-            {
-                // Clear the additional robot's waypoints and make it follow the leader
-                additional_robot->waypoints_.clear();
-                additional_robot->waypoints_.push_back(leader->position_ - offset_from_target);
-
-                // Update the additional robot's following behavior to continue following the leader
-                additional_robot->waypoints_[0] = leader->position_ - offset_from_target;
-
-                follower->waypoints_[0] = additional_robot->position_ - offset_from_target;
-            }
-        }
-    }
-    else if (globals.FORMATION == "ets2")
+    if (globals.FORMATION == "ets2")
     {
         new_robots_needed_ = false; // We only need to create the robots once
         if (robots_.empty())
@@ -781,39 +749,52 @@ void Simulator::createOrDeleteRobots()
             {
                 Eigen::VectorXd initialPosition(4);
                 initialPosition << 0., 0., 0., 0.;
-
                 Eigen::VectorXd waypoint(4);
                 waypoint << 100., 0., 0., 0.;
-
                 Eigen::VectorXd waypoint2(4);
                 waypoint2 << 100., 15., 0., 0.;
-
                 Eigen::VectorXd waypoint3(4);
                 waypoint3 << -125., -30., 0., 0.;
-
                 Eigen::VectorXd waypoint4(4);
                 waypoint4 << -250., -175., 0., 0.;
 
                 std::deque<Eigen::VectorXd> waypoints;
                 waypoints.push_back(initialPosition);
 
-                if (i == 1)
+                int group_id = (i % 2 == 0) ? 2 : 1; // Even robots to group 2, odd to group 1
+
+                if (group_id == 2)
                 {
                     waypoints.push_back(initialPosition);
-                    waypoints.push_back(waypoint);
+                    waypoints.push_back(waypoint2);
                     waypoints.push_back(waypoint4);
                 }
                 else
                 {
                     waypoints.push_back(initialPosition);
-                    waypoints.push_back(waypoint2);
+                    waypoints.push_back(waypoint);
                     waypoints.push_back(waypoint3);
                     waypoints.push_back(waypoint4);
                 }
 
                 float robot_radius = globals.ROBOT_RADIUS;
-                Color robot_color = (i == 1) ? DARKBROWN : DARKBLUE; // Different colors for each robot (1: DARKBROWN, 2: DARKBLUE)
-                robots_to_create.push_back(std::make_shared<Robot>(this, i, waypoints, robot_radius, robot_color));
+                Color robot_color = (group_id == 2) ? DARKBROWN : DARKBLUE; // Group 2: DARKBROWN, Group 1: DARKBLUE
+
+                int master_id;
+                bool isMaster;
+                if (i == 1)
+                {
+                    master_id = -1;
+                    isMaster = true;
+                }
+                else
+                {
+                    master_id = i - 1;
+                    isMaster = false;
+                }
+
+                robots_to_create.push_back(std::make_shared<Robot>(
+                    this, i, waypoints, robot_radius, robot_color, isMaster, master_id, group_id));
             }
         }
     }
@@ -827,6 +808,8 @@ void Simulator::createOrDeleteRobots()
     {
         robot_positions_[robot->rid_] = std::vector<double>{robot->waypoints_[0](0), robot->waypoints_[0](1)};
         robots_[robot->rid_] = robot;
+        if (!robot->isMaster_)
+            robot->createMasterSlaveFactors();
     };
     for (auto robot : robots_to_delete)
     {

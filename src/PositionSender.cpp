@@ -86,14 +86,21 @@ bool PositionSender::hasFailurePoint(int robot_id) const
     return failure_points.find(robot_id) != failure_points.end();
 }
 
+void PositionSender::setStartingIndex(int robot_id, size_t starting_index)
+{
+    std::lock_guard<std::mutex> lock(positions_mutex);
+    start_indices[robot_id] = starting_index;
+}
+
 void PositionSender::sendPositionsThread()
 {
     std::map<int, size_t> indices;
 
     for (const auto &pair : positions)
     {
-        indices[pair.first] = 0;
-        robot_failed[pair.first] = false;
+        int robot_id = pair.first;
+        indices[robot_id] = start_indices.count(robot_id) ? start_indices[robot_id] : 0;
+        robot_failed[robot_id] = false;
     }
 
     while (sending_positions)
@@ -128,7 +135,7 @@ void PositionSender::sendPositionsThread()
             sending_positions = false;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(33)); // 10 Hz // 30 fps = 33ms
+        std::this_thread::sleep_for(std::chrono::milliseconds(200)); // 5 Hz
     }
 }
 
