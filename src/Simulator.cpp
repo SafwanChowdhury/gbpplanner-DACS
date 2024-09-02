@@ -188,14 +188,32 @@ void Simulator::updateRobotsFromRadar()
     if (globals.USE_RADAR)
     {
         auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
+        auto latencies = radar.getLatestLatencies();
+
         for (const auto &[host_id, coord] : coordinates)
         {
             int robot_id = mapHostToRobot(host_id);
             auto vel_it = velocities.find(host_id);
+            auto latency_it = latencies.find(radar.getServerIdForHost(host_id));
+
             if (vel_it != velocities.end())
             {
                 updateRobotPosition(robot_id, coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
                 last_coords[robot_id] = Eigen::Vector4d(coord.x(), coord.y(), vel_it->second.x(), vel_it->second.y());
+
+                if (latency_it != latencies.end())
+                {
+                    // Log or use the latency information as needed
+                    double latency = latency_it->second;
+                    std::cout << "Latency for robot " << robot_id << ": " << latency << " seconds" << std::endl;
+
+                    // You can store this latency in your Robot class or use it for other purposes
+                    auto robot_it = robots_.find(robot_id);
+                    if (robot_it != robots_.end())
+                    {
+                        robot_it->second->setLatency(latency);
+                    }
+                }
             }
             else
             {
@@ -456,8 +474,13 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         {
             printf("Robot %s overriding cruise control with speed %f\n", host_id.c_str(), next_speed);
         }
+        // Get the current time
+        double sent_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+
         nlohmann::json json_data = {
-            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", mapHostToRobot(host_id)}, {"required_speed_mph", required_speed_mph}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}}},
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", robot_id}, {"timestep", clock_}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}, {"sent_time", sent_time}}},
             {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";

@@ -305,6 +305,17 @@ void Radar::processTruckData(const std::string &server_id, const nlohmann::json 
                 std::cerr << "Missing routeTime data in truckFloat for " << server_id << std::endl;
             }
         }
+
+        if (data.contains("sent_time"))
+        {
+            double sent_time = data["sent_time"];
+            double received_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                                       std::chrono::system_clock::now().time_since_epoch())
+                                       .count();
+            double latency = received_time - sent_time;
+
+            latest_latencies[server_id] = latency;
+        }
     }
     catch (const nlohmann::json::exception &e)
     {
@@ -428,4 +439,10 @@ std::string Radar::getHostIdForServer(const std::string &server_id) const
         }
     }
     return ""; // Return empty string if server_id is not found
+}
+
+std::map<std::string, double> Radar::getLatestLatencies()
+{
+    std::lock_guard<std::mutex> lock(data_mutex);
+    return latest_latencies;
 }

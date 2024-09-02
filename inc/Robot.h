@@ -105,4 +105,18 @@ public:
     double last_next_speed_;
 
     std::tuple<double, double, double> getData() const;
+
+    // New methods for latency
+    void setLatency(double latency)
+    {
+        latency_ = latency;
+    }
+
+    double getLatency() const
+    {
+        return latency_;
+    }
+
+private:
+    double latency_ = 0.0;
 };

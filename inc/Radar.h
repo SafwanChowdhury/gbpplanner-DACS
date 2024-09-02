@@ -37,6 +37,7 @@ public:
     std::vector<std::string> getServerOrder() const;
     void mapHostIdToServer(const std::string &server_id, const std::string &host_id);
     bool hasReceivedHostId(const std::string &server_id) const;
+    std::map<std::string, double> getLatestLatencies();
 
 private:
     void connectWebSocket(ServerInfo &server);
@@ -62,4 +63,5 @@ private:
     std::map<std::string, double> latest_route_distances;
     std::vector<std::string> server_order;
     std::map<std::string, std::string> server_to_host_id;
+    std::map<std::string, double> latest_latencies;
 };
