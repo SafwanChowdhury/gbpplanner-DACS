@@ -131,8 +131,8 @@ void Robot::updateCurrent()
     Eigen::VectorXd increment = ((*this)[1]->mu_ - (*this)[0]->mu_) * globals.TIMESTEP / globals.T0;
 
     // Calculate forward acceleration and turn angle
-    Eigen::Vector2d current_velocity = (*this)[1]->mu_.segment<2>(2);
-    Eigen::Vector2d next_velocity = (*this)[2]->mu_.segment<2>(2);
+    Eigen::Vector2d current_velocity = (*this)[0]->mu_.segment<2>(2);
+    Eigen::Vector2d next_velocity = (*this)[1]->mu_.segment<2>(2);
     double current_speed = current_velocity.norm();
     last_next_speed_ = next_velocity.norm();
 
@@ -150,6 +150,7 @@ void Robot::updateCurrent()
     while (last_turn_angle_ < -180.0)
         last_turn_angle_ += 360.0;
     last_next_speed_ = last_next_speed_ * 2.23694; // Convert to mph
+    current_speed_ = current_speed * 2.23694;      // Convert to mph
     // In GBP we do this by modifying the prior on the variable
     getVar(0)->change_variable_prior(getVar(0)->mu_ + increment);
 
@@ -225,7 +226,7 @@ void Robot::updateWaypoints()
 
     double distance = (current_position - next_waypoint).norm();
 
-    if (distance < globals.WAYPOINT_RADIUS && waypoints_.size() > 1)
+    if (distance < globals.WAYPOINT_RADIUS && waypoints_.size() > 1 && !has_merged_)
     {
         waypoints_.erase(waypoints_.begin() + 1);
     }

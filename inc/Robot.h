@@ -103,7 +103,7 @@ public:
     double last_acceleration_;
     double last_turn_angle_;
     double last_next_speed_;
-
+    double current_speed_;
     std::tuple<double, double, double> getData() const;
 
     // New methods for latency

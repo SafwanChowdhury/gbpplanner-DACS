@@ -798,7 +798,7 @@ void Simulator::collectSimulationData()
                 data.robot_data.push_back(std::make_tuple(
                     robot->master_id_,
                     rid,
-                    master_robot->second->last_next_speed_,
+                    master_robot->second->current_speed_,
                     robot->last_next_speed_,
                     distance));
 
@@ -815,22 +815,66 @@ void Simulator::collectSimulationData()
 
 void Simulator::exportSimulationData()
 {
-    std::ofstream outFile("simulation_data.csv");
-    outFile << "TimeStep,MasterID,SlaveID,MasterNextSpeed,SlaveNextSpeed,Distance\n";
+    auto formatDP = [](double value, int precision)
+    {
+        std::stringstream stream;
+        stream << std::fixed << std::setprecision(precision) << value;
+        return stream.str();
+    };
 
+    // Get current time
+    auto now = std::chrono::system_clock::now();
+    auto now_c = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&now_c), "%m%d_%H%M");
+    std::string timestamp = ss.str();
+
+    std::string filename = "simulation_data_" + timestamp + "_" +
+                           "SM" + formatDP(globals.SIGMA_FACTOR_MASTERSLAVE, 1) + "_" +
+                           "MD" + formatDP(globals.MIN_DISTANCE, 0) + "_" +
+                           "XD" + formatDP(globals.MAX_DISTANCE, 0) + ".csv";
+
+    std::replace(filename.begin(), filename.end(), ' ', '_');
+    std::replace(filename.begin(), filename.end(), ':', '_');
+    std::replace(filename.begin(), filename.end(), ',', '_');
+
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to create or open file: " << filename << std::endl;
+        return;
+    }
+    auto replaceAll = [](std::string &str, const std::string &from, const std::string &to)
+    {
+        size_t startPos = 0;
+        while ((startPos = str.find(from, startPos)) != std::string::npos)
+        {
+            str.replace(startPos, from.length(), to);
+            startPos += to.length(); // Move past the last replacement
+        }
+    };
+    auto removeChar = [](std::string &str, char charToRemove)
+    {
+        str.erase(std::remove(str.begin(), str.end(), charToRemove), str.end());
+    };
+    std::string name = std::string(filename);
+    replaceAll(name, "simulation_data_", "");
+    replaceAll(name, timestamp, "");
+    removeChar(name, '_');
+    replaceAll(name, ".csv", "");
+    file << "TimeStep,MasterID,SlaveID,MasterNextSpeed,SlaveNextSpeed,Distance," << name << "\n";
     for (const auto &step_data : simulation_data)
     {
         for (const auto &[master_id, slave_id, master_next_speed, slave_next_speed, distance] : step_data.robot_data)
         {
-            outFile << step_data.time_step << ","
-                    << master_id << ","
-                    << slave_id << ","
-                    << master_next_speed << ","
-                    << slave_next_speed << ","
-                    << distance << "\n";
+            file << step_data.time_step << ","
+                 << master_id << ","
+                 << slave_id << ","
+                 << master_next_speed << ","
+                 << slave_next_speed << ","
+                 << distance << "\n";
         }
     }
-
-    outFile.close();
-    std::cout << "Simulation data exported to simulation_data.csv" << std::endl;
+    file.close();
+    std::cout << "Simulation data exported to " << filename << std::endl;
 }
