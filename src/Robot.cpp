@@ -236,6 +236,14 @@ void Robot::updateWaypoints()
     }
 }
 
+void Robot::updateDynamicsFactors()
+{
+    if (dynamics_factor_) {
+        Eigen::Vector2d current_velocity = (*this)[0]->mu_.segment<2>(2);
+        dynamics_factor_->updateDynamics(current_velocity);
+    }
+}
+
 /***************************************************************************************************/
 // For new neighbours of a robot, create inter-robot factors if they don't exist.
 // Delete existing inter-robot factors for faraway robots

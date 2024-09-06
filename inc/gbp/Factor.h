@@ -99,6 +99,10 @@ public:
                    float sigma, const Eigen::VectorXd &measurement,
                    float dt, const Eigen::Vector2d &current_velocity);
 
+    float dt_;
+    float sigma_;
+    Eigen::Matrix2d local_constraint_;
+    void updateDynamics(const Eigen::Vector2d &current_velocity);
     virtual Eigen::MatrixXd h_func_(const Eigen::VectorXd &X) override;
     virtual Eigen::MatrixXd J_func_(const Eigen::VectorXd &X) override;
 };

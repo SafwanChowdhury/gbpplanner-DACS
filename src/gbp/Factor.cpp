@@ -216,35 +216,19 @@ Message Factor::marginalise_factor_dist(const Eigen::VectorXd &eta, const Eigen:
 DynamicsFactor::DynamicsFactor(int f_id, int r_id, std::vector<std::shared_ptr<Variable>> variables,
                                float sigma, const Eigen::VectorXd &measurement,
                                float dt, const Eigen::Vector2d &current_velocity)
-    : Factor{f_id, r_id, variables, sigma, measurement}
+    : Factor{f_id, r_id, variables, sigma, measurement}, dt_(dt), sigma_(sigma)
 {
     factor_type_ = DYNAMICS_FACTOR;
 
-    // Calculate heading from current velocity
-    double heading = std::atan2(current_velocity.y(), current_velocity.x());
-
-    // Create rotation matrix
-    Eigen::Matrix2d R;
-    R << std::cos(heading), -std::sin(heading),
-        std::sin(heading), std::cos(heading);
-
-    // Create local constraint matrix
-    Eigen::Matrix2d local_constraint;
-    local_constraint << 1, 0,
+    // Initialize local_constraint_
+    local_constraint_ << 1, 0,
         0, 100; // Increase the weight for sideways movement
-
-    // Rotate the constraint matrix to world frame
-    Eigen::Matrix2d Qc_inv_rotated = R * local_constraint * R.transpose();
 
     Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_dofs_ / 2, n_dofs_ / 2);
     Eigen::MatrixXd O = Eigen::MatrixXd::Zero(n_dofs_ / 2, n_dofs_ / 2);
-    Eigen::MatrixXd Qc_inv = pow(sigma, -2.) * Qc_inv_rotated;
 
-    Eigen::MatrixXd Qi_inv(n_dofs_, n_dofs_);
-    Qi_inv << 12. * pow(dt, -3.) * Qc_inv, -6. * pow(dt, -2.) * Qc_inv,
-        -6. * pow(dt, -2.) * Qc_inv, 4. / dt * Qc_inv;
-
-    this->meas_model_lambda_ = Qi_inv;
+    // Call updateDynamics to initialize meas_model_lambda_
+    updateDynamics(current_velocity);
 
     // Store Jacobian as it is linear
     this->linear_ = true;
@@ -252,6 +236,28 @@ DynamicsFactor::DynamicsFactor(int f_id, int r_id, std::vector<std::shared_ptr<V
     J_ << I, dt * I, -1 * I, O,
         O, I, O, -1 * I;
 };
+
+void DynamicsFactor::updateDynamics(const Eigen::Vector2d &current_velocity)
+{
+    double heading = std::atan2(current_velocity.y(), current_velocity.x());
+
+    // Create rotation matrix
+    Eigen::Matrix2d R;
+    R << std::cos(heading), -std::sin(heading),
+        std::sin(heading), std::cos(heading);
+
+    // Rotate the constraint matrix to world frame
+    Eigen::Matrix2d Qc_inv_rotated = R * local_constraint_ * R.transpose();
+    Eigen::MatrixXd I = Eigen::MatrixXd::Identity(n_dofs_ / 2, n_dofs_ / 2);
+    Eigen::MatrixXd O = Eigen::MatrixXd::Zero(n_dofs_ / 2, n_dofs_ / 2);
+    Eigen::MatrixXd Qc_inv = pow(sigma_, -2.) * Qc_inv_rotated;
+
+    Eigen::MatrixXd Qi_inv(n_dofs_, n_dofs_);
+    Qi_inv << 12. * pow(dt_, -3.) * Qc_inv, -6. * pow(dt_, -2.) * Qc_inv,
+        -6. * pow(dt_, -2.) * Qc_inv, 4. / dt_ * Qc_inv;
+
+    this->meas_model_lambda_ = Qi_inv;
+}
 
 Eigen::MatrixXd DynamicsFactor::h_func_(const Eigen::VectorXd &X)
 {

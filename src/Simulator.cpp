@@ -34,7 +34,7 @@ Simulator::Simulator(const std::vector<std::string> &radarIPs)
     else
     {
         position_sender.loadPositions();
-        position_sender.setStartingIndex(1, 70); // Set starting index for sending positions
+        position_sender.setStartingIndex(1, 60); // Set starting index for sending positions
         position_sender.setStartingIndex(2, 60); // Set starting index for sending positions
 
         position_sender.setRobotFailurePoint(2, 110); // Set failure points for specific robots if needed
@@ -137,6 +137,7 @@ void Simulator::updateRobotPosition(int robotIndex, double x, double y, double v
         return; // Robot not found, exit early
     }
     auto &robot = robotIt->second;
+    robot->updateDynamicsFactors();
 
     // Check if the robot has failed
     if (!position_sender.isRobotFailed(robotIndex))

@@ -117,6 +117,10 @@ public:
         return latency_;
     }
 
+    void updateDynamicsFactors();
+
+    std::shared_ptr<DynamicsFactor> dynamics_factor_;
+
 private:
     double latency_ = 0.0;
 };
