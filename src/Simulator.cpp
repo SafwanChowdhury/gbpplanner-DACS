@@ -410,12 +410,6 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
             }
         }
 
-        if (is_leader && robot_override_cruise_control)
-        {
-            printf("Leader %d new master %s\n", robot_id, getHostIdForRobot(robot_it->second->master_id_).c_str());
-            target_speed = next_speed;
-        }
-
         if (robot_override_cruise_control)
         {
             printf("Robot %s overriding cruise control with speed %f\n", host_id.c_str(), target_speed);
