@@ -331,41 +331,6 @@ std::vector<std::tuple<double, double, double, double, double, double, double, s
     return values;
 }
 
-void Simulator::printRouteTimes()
-{
-    if (!globals.USE_RADAR)
-    {
-        return;
-    }
-
-    // Get the latest radar data
-    auto [coordinates, velocities, routeTimes, routeDistances] = radar.getLatestData();
-
-    for (const auto &[host_id, route_time] : routeTimes)
-    {
-        // Check if distance information is available
-        if (routeDistances.find(host_id) != routeDistances.end())
-        {
-            double current_distance = routeDistances.at(host_id);
-            double remaining_distance = 40890.0 - current_distance; // 40890 meters is the target distance
-            double remaining_time = 1913.0 - route_time;            // 1913 seconds is the target time
-
-            // Calculate the required speed in meters per second
-            double required_speed_mps = remaining_distance / remaining_time;
-
-            // Convert the required speed from meters per second to miles per hour
-            double required_speed_mph = required_speed_mps * 2.23694;
-
-            std::cout << "Truck " << host_id << ": " << route_time << " seconds, Distance: " << current_distance
-                      << " meters -> Required Speed: " << required_speed_mph << " mph" << std::endl;
-        }
-        else
-        {
-            std::cerr << "No distance data available for truck " << host_id << std::endl;
-        }
-    }
-}
-
 void Simulator::sendIterationValues(const std::vector<std::tuple<double, double, double, double, double, double, double, std::string>> &values)
 {
     auto servers = radar.getServers();
@@ -393,28 +358,6 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         }
     }
 
-    const double MERGE_DISTANCE = 40890.0;            // meters
-    const double MERGE_TIME = 1913.0;                 // seconds
-    const double TARGET_MERGE_SPEED = 60.0 * 0.44704; // 60 mph converted to m/s
-    const double FOLLOWER_TIME_GAP = 2.0;             // 2 seconds gap for the follower
-
-    // Set the leader's robot ID here
-    const int LEADER_RID = 2; // Change this to the desired leader's robot ID
-    std::string leader_host_id;
-    double leader_distance = 0;
-
-    // First pass: Identify the leader and its distance
-    for (size_t i = 0; i < num_servers && i < values.size(); ++i)
-    {
-        const auto &[x, y, vx, vy, acceleration, turn_angle, next_speed, host_id] = values[i];
-        if (mapHostToRobot(host_id) == LEADER_RID)
-        {
-            leader_host_id = host_id;
-            leader_distance = routeDistances[host_id];
-            break;
-        }
-    }
-
     // Second pass: Calculate and send data for each truck
     for (size_t i = 0; i < num_servers && i < values.size(); ++i)
     {
@@ -425,61 +368,65 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         auto robot_it = robots_.find(robot_id);
         bool robot_override_cruise_control = (robot_it != robots_.end()) ? robot_it->second->override_cruise_control_ : false;
 
-        double current_distance = routeDistances[host_id];
-        double remaining_distance = MERGE_DISTANCE - current_distance;
-        double remaining_time = MERGE_TIME - routeTimes[host_id];
+        double remaining_time = routeTimes[host_id];
 
-        double current_speed = std::sqrt(vx * vx + vy * vy);
-        double required_speed_mps;
+        bool is_leader = robot_it->second->isMaster_;
+        double target_speed = next_speed;
 
-        bool is_leader = (host_id == leader_host_id);
-
-        if (is_leader)
+        double leader_speed = 0.0;
+        if (!is_leader && robot_override_cruise_control)
         {
-            // Leader logic: aim to reach merge point at 60 mph
-            if (remaining_distance > 0 && remaining_time > 0)
+            auto leader_it = robots_.find(robot_it->second->master_id_);
+            if (leader_it != robots_.end())
             {
-                double t = current_distance / MERGE_DISTANCE;
-                required_speed_mps = current_speed * (1 - t) + TARGET_MERGE_SPEED * t;
+                leader_speed = leader_it->second->position_.segment<2>(2).norm();
 
-                double estimated_arrival_time = remaining_distance / required_speed_mps;
-                if (estimated_arrival_time > remaining_time)
+                // Get the remaining time for the leader
+                auto leader_id = robot_it->second->master_id_;
+                auto leader_host_id = getHostIdForRobot(leader_id);
+                auto leader_time_it = routeTimes.find(leader_host_id);
+
+                if (leader_time_it != routeTimes.end())
                 {
-                    required_speed_mps = remaining_distance / remaining_time;
+                    double leader_remaining_time = leader_time_it->second;
+
+                    // If this robot has less remaining time than the leader, set its speed to the leader's speed
+                    if (remaining_time < leader_remaining_time)
+                    {
+                        target_speed = robot_it->second->position_(2) * 2.23694;
+                        robot_override_cruise_control = false;
+                        robot_it->second->override_cruise_control_ = false;
+                        robot_it->second->has_merged_ = false;
+                        robot_it->second->waypoints_.clear();
+                        robot_it->second->waypoints_.push_back(leader_it->second->waypoints_.back());
+                        robot_it->second->isMaster_ = true;
+                        robot_it->second->master_id_ = -1;
+                        leader_it->second->override_cruise_control_ = true;
+                        leader_it->second->master_id_ = robot_id;
+                        leader_it->second->isMaster_ = false;
+                        leader_it->second->has_merged_ = true;
+                    }
                 }
             }
-            else
-            {
-                required_speed_mps = TARGET_MERGE_SPEED;
-            }
-        }
-        else
-        {
-            // Follower logic: adjust speed to arrive FOLLOWER_TIME_GAP seconds after the leader
-            double leader_remaining_distance = MERGE_DISTANCE - leader_distance;
-            double time_to_match = remaining_time - FOLLOWER_TIME_GAP;
-            if (time_to_match > 0)
-            {
-                required_speed_mps = remaining_distance / time_to_match;
-            }
-            else
-            {
-                required_speed_mps = current_speed; // Maintain current speed if we can't calculate
-            }
         }
 
-        double required_speed_mph = required_speed_mps * 2.23694;
+        if (is_leader && robot_override_cruise_control)
+        {
+            printf("Leader %d new master %s\n", robot_id, getHostIdForRobot(robot_it->second->master_id_).c_str());
+            target_speed = next_speed;
+        }
+
         if (robot_override_cruise_control)
         {
-            printf("Robot %s overriding cruise control with speed %f\n", host_id.c_str(), next_speed);
+            printf("Robot %s overriding cruise control with speed %f\n", host_id.c_str(), target_speed);
         }
-        // Get the current time
+        // Get the current time for latency calculation
         double sent_time = std::chrono::duration_cast<std::chrono::duration<double>>(
                                std::chrono::system_clock::now().time_since_epoch())
                                .count();
-        print("time step: ", clock_);
+
         nlohmann::json json_data = {
-            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", next_speed}, {"robot_id", robot_id}, {"timestep", clock_}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}, {"sent_time", sent_time}}},
+            {"iteration_data", {{"host_id", host_id}, {"position", {{"x", x}, {"y", y}}}, {"velocity", {{"x", vx}, {"y", vy}}}, {"acceleration", acceleration}, {"turn_angle", turn_angle}, {"next_speed", target_speed}, {"robot_id", robot_id}, {"timestep", clock_}, {"is_leader", is_leader}, {"override_cruise_control", robot_override_cruise_control}, {"sent_time", sent_time}}},
             {"all_trucks_data", all_trucks_data}};
 
         std::string json_string = json_data.dump() + "\n";
@@ -489,8 +436,7 @@ void Simulator::sendIterationValues(const std::vector<std::tuple<double, double,
         all_trucks_data.push_back({{"host_id", host_id},
                                    {"position", {{"x", x}, {"y", y}}},
                                    {"velocity", {{"x", vx}, {"y", vy}}},
-                                   {"is_leader", is_leader},
-                                   {"required_speed_mph", required_speed_mph}});
+                                   {"is_leader", is_leader}});
     }
 }
 
@@ -509,8 +455,6 @@ void Simulator::timestep()
     {
         handleWaypointsAndMergePoints(robot, rid);
     }
-
-    // printRouteTimes();
 
     // Create and/or destory factors depending on a robot's neighbours
     calculateRobotNeighbours(robots_);
