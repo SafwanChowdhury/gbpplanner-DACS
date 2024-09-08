@@ -12,6 +12,14 @@
 #include <gbp/Factor.h>
 #include <gbp/Factorgraph.h>
 
+struct DistanceViolationData
+{
+    int below_min_occurrences = 0;
+    int above_max_occurrences = 0;
+    int below_min_time = 0;
+    int above_max_time = 0;
+};
+
 extern Globals globals;
 
 /***************************************************************************/
@@ -52,7 +60,6 @@ public:
     Image *p_obstacleImage;              // Pointer to image representing the obstacles in the environment
     float height_3D_ = 0.f;              // Height out of plane (for 3d visualisation only)
     Eigen::VectorXd position_;           // Position of the robot (equivalent to taking the [x,y] of the current state of the robot)
-    Eigen::VectorXd getPosition() const; // Add this line if there's no method to get the position
 
     /****************************************/
     // Functions
@@ -72,7 +79,6 @@ public:
     void deleteInterrobotFactors(std::shared_ptr<Robot> other_robot);
 
     void createMasterSlaveFactors();
-    void updateMasterSlaveFactor();
     /***************************************************************************************************/
     // Drawing function
     /***************************************************************************************************/
@@ -94,4 +100,26 @@ public:
         std::advance(it, search_vid);
         return it->second;
     }
+
+    double safe_zone_radius_;
+    int safe_zone_violations_;
+
+    bool checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &robots);
+    void updatePathHistory();
+    double distanceToMasterPath(const Robot *master) const;
+
+    DistanceViolationData distance_violations_;
+    bool is_below_min_distance_ = false;
+    bool is_above_max_distance_ = false;
+
+    void checkAndUpdateDistanceViolations(const std::shared_ptr<Robot> &master);
+
+    std::deque<Eigen::Vector2d> path_history_;
+
+private:
+    static const size_t MAX_PATH_HISTORY_SIZE = 1000;
+
+    double pointToLineSegmentDistance(const Eigen::Vector2d &point,
+                                      const Eigen::Vector2d &lineStart,
+                                      const Eigen::Vector2d &lineEnd) const;
 };

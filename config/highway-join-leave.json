@@ -31,7 +31,7 @@
   "MIN_DISTANCE": 0,
   "MAX_DISTANCE": 20,
   "NUM_ITERS": 10,
-  "ROGUE_AGENTS": 0
-
+  "ROGUE_AGENTS": 0,
+  "TESTING": 0
 
 }

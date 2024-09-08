@@ -19,10 +19,16 @@ Robot::Robot(Simulator *sim,
              Color color,
              bool isMaster,
              int master_id,
-             int group_id) : FactorGraph{sim->next_rid_},
+             int group_id) : FactorGraph{rid},
                              sim_(sim), rid_(rid),
                              waypoints_(waypoints),
-                             robot_radius_(size), color_(color), isMaster_(isMaster), master_id_(master_id)
+                             robot_radius_(size),
+                             color_(color),
+                             isMaster_(isMaster),
+                             master_id_(master_id),
+                             group_id_(group_id),
+                             safe_zone_radius_(robot_radius_ * 1),
+                             safe_zone_violations_(0)
 {
 
     height_3D_ = robot_radius_; // Height out of plane for 3d visualisation only
@@ -126,6 +132,9 @@ void Robot::updateCurrent()
     // Calculate heading (assuming positive x-axis is 0 degrees)
     double current_heading = std::atan2(current_velocity.y(), current_velocity.x());
 
+    if (globals.TESTING)
+        updatePathHistory();
+
     // print the increment vector for robot id 5
     // if (rid_ == 5)
     // {
@@ -213,7 +222,7 @@ void Robot::createInterrobotFactors(std::shared_ptr<Robot> other_robot)
 
         // Create the inter-robot factor
         Eigen::VectorXd z = Eigen::VectorXd::Zero(variables.front()->n_dofs_);
-        auto factor = std::make_shared<InterrobotFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_INTERROBOT, z, 0.5 * (this->robot_radius_ + other_robot->robot_radius_), this->isMaster_);
+        auto factor = std::make_shared<InterrobotFactor>(sim_->next_fid_++, this->rid_, variables, globals.SIGMA_FACTOR_INTERROBOT, z, 0.5 * (this->robot_radius_ + other_robot->robot_radius_));
         factor->other_rid_ = other_robot->rid_;
         // Add factor the the variable's list of factors, as well as to the robot's list of factors
         for (auto var : factor->variables_)
@@ -365,11 +374,6 @@ std::vector<int> Robot::getVariableTimesteps(int lookahead_horizon, int lookahea
     return var_list;
 };
 
-Eigen::VectorXd Robot::getPosition() const
-{
-    return position_; // Replace with the correct code if position_ is not the correct member
-}
-
 /***************************************************************************************************/
 // Create master-slave factors between this robot (slave) and its designated master
 /***************************************************************************************************/
@@ -393,4 +397,100 @@ void Robot::createMasterSlaveFactors()
             var->add_factor(factor);
         this->factors_[factor->key_] = factor;
     }
+}
+
+/***************************************************************************************************/
+// Testing function to check if robots enter each other's safe zones
+/***************************************************************************************************/
+bool Robot::checkSafeZoneViolation(const std::map<int, std::shared_ptr<Robot>> &robots)
+{
+    for (const auto &[rid, other_robot] : robots)
+    {
+        if (rid == this->rid_)
+            continue;
+
+        double distance = (this->position_ - other_robot->position_).head<2>().norm();
+        if (distance < this->safe_zone_radius_ + other_robot->safe_zone_radius_)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Robot::updatePathHistory()
+{
+    path_history_.push_back(position_.head<2>());
+    if (path_history_.size() > MAX_PATH_HISTORY_SIZE)
+    {
+        path_history_.pop_front();
+    }
+}
+
+double Robot::distanceToMasterPath(const Robot *master) const
+{
+    if (master->path_history_.size() < 2)
+    {
+        return (position_.head<2>() - master->path_history_.back()).norm();
+    }
+
+    double min_distance = std::numeric_limits<double>::max();
+    for (size_t i = 1; i < master->path_history_.size(); ++i)
+    {
+        double distance = pointToLineSegmentDistance(position_.head<2>(), master->path_history_[i - 1], master->path_history_[i]);
+        min_distance = std::min(min_distance, distance);
+    }
+    return min_distance;
+}
+
+double Robot::pointToLineSegmentDistance(const Eigen::Vector2d &point,
+                                         const Eigen::Vector2d &lineStart,
+                                         const Eigen::Vector2d &lineEnd) const
+{
+    Eigen::Vector2d line = lineEnd - lineStart;
+    double line_length_sq = line.squaredNorm();
+
+    if (line_length_sq < 1e-6)
+    { // Line segment is a point
+        return (point - lineStart).norm();
+    }
+
+    // Calculate the projection of the point onto the line
+    double t = (point - lineStart).dot(line) / line_length_sq;
+    t = std::max(0.0, std::min(1.0, t)); // Clamp t to [0, 1]
+
+    Eigen::Vector2d projection = lineStart + t * line;
+    return (point - projection).norm();
+}
+
+void Robot::checkAndUpdateDistanceViolations(const std::shared_ptr<Robot> &master)
+{
+    if (!master)
+        return;
+
+    double distance = (this->position_ - master->position_).norm();
+
+    bool new_below_min = distance < globals.MIN_DISTANCE;
+    bool new_above_max = distance > globals.MAX_DISTANCE;
+
+    if (new_below_min && !is_below_min_distance_)
+    {
+        distance_violations_.below_min_occurrences++;
+    }
+    if (new_above_max && !is_above_max_distance_)
+    {
+        distance_violations_.above_max_occurrences++;
+    }
+
+    if (new_below_min)
+    {
+        distance_violations_.below_min_time++;
+    }
+    if (new_above_max)
+    {
+        distance_violations_.above_max_time++;
+    }
+
+    is_below_min_distance_ = new_below_min;
+    is_above_max_distance_ = new_above_max;
 }

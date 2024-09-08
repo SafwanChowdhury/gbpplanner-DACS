@@ -37,3 +37,4 @@ debug/
 # Python
 __pycache__/
 branch_summary_*.txt
+Branch Summaries/
