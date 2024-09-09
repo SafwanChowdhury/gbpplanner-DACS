@@ -1339,7 +1339,6 @@ void Simulator::createOrDeleteRobots()
                     break;
                 case 1:
                     leader_color = MAGENTA;
-                    print("next_rid_: ", next_rid_);
                     follower_color = MAGENTA;
                     break;
                 case 2:
@@ -1504,7 +1503,6 @@ void Simulator::createOrDeleteRobots()
                     break;
                 case 1:
                     leader_color = MAGENTA;
-                    print("next_rid_: ", next_rid_);
                     follower_color = MAGENTA;
                     break;
                 case 2:
