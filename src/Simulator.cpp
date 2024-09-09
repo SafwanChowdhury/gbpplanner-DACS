@@ -538,10 +538,10 @@ void Simulator::createOrDeleteRobots()
             robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, isMaster, master_id, -1));
         }
         // print to termimal for each robot its data
-        for (auto robot : robots_to_create)
-        {
-            print("Robot ID: ", robot->rid_, " Master ID: ", robot->master_id_, " Master: ", robot->isMaster_, " Position: ", robot->position_.transpose());
-        }
+        // for (auto robot : robots_to_create)
+        // {
+        //     print("Robot ID: ", robot->rid_, " Master ID: ", robot->master_id_, " Master: ", robot->isMaster_, " Position: ", robot->position_.transpose());
+        // }
     }
     else if (globals.FORMATION == "junction")
     {

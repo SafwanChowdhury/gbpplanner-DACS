@@ -7,7 +7,7 @@
   "WORLD_SZ": 200,
   "SCREEN_SZ": 1000,
   "DRAW_INTERROBOT": 0,
-  "DRAW_PATH": 0,
+  "DRAW_PATH": 1,
   "DRAW_WAYPOINTS": 0,
   
   "##": "Simulation parameters",
