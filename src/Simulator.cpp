@@ -211,7 +211,7 @@ void Simulator::draw()
             }
         }
 
-        if (!robot->isMaster_)
+        if (robot->master_id_ != -1)
         {
             auto master_robot = robots_.find(robot->master_id_);
             if (master_robot != robots_.end())
@@ -838,13 +838,75 @@ void Simulator::createOrDeleteRobots()
             }
         }
     }
+    else if (globals.FORMATION == "follow-leader-combined")
+    {
+        new_robots_needed_ = true;
+        // robot count and time
+        if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS + 1) // Update condition to create 21 robots (1 leader + 20 followers)
+        {
+            // Create a leader robot
+            std::cout << "Creating leader robot" << std::endl;
+            starting = Eigen::VectorXd{{-globals.WORLD_SZ / 2., -globals.WORLD_SZ / 2., globals.MAX_SPEED, 0.}};
+
+            // generate a set of random waypoints for the leader robot and insert it into the robots_ map
+            std::deque<Eigen::VectorXd> waypoints{starting};
+            for (int i = 0; i < 20; i++)
+            {
+                Eigen::VectorXd next_waypoint = Eigen::VectorXd{{random_double(-globals.WORLD_SZ / 2., globals.WORLD_SZ / 2.), random_double(-globals.WORLD_SZ / 2., globals.WORLD_SZ / 2.), 0., 0.}};
+                waypoints.push_back(next_waypoint);
+            }
+
+            ending = Eigen::VectorXd{{(double)globals.WORLD_SZ, -globals.WORLD_SZ / 2., 0., 0.}};
+            waypoints.push_back(ending);
+            float robot_radius = globals.ROBOT_RADIUS;
+            Color robot_color = DARKGREEN;
+            robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, true, -1, 1));
+
+            leader_init_ = true;
+
+            // Create follower robots
+            float min_circumference_spacing = 5. * globals.ROBOT_RADIUS;
+            double min_radius = 0.25 * globals.WORLD_SZ;
+            Eigen::VectorXd centre{{0., 0., 0., 0.}};
+            for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Create 20 follower robots
+            {
+                // Select radius of large circle to be at least min_radius,
+                // Also ensures that robots in the circle are at least min_circumference_spacing away from each other
+                float radius_circle = (globals.NUM_ROBOTS == 1) ? min_radius : std::max(min_radius, sqrt(min_circumference_spacing / (2. - 2. * cos(2. * PI / globals.NUM_ROBOTS))));
+                Eigen::VectorXd offset_from_centre = Eigen::VectorXd{{radius_circle * cos(2. * PI * i / globals.NUM_ROBOTS)},
+                                                                     {radius_circle * sin(2. * PI * i / globals.NUM_ROBOTS)},
+                                                                     {0.},
+                                                                     {0.}};
+                starting = centre + offset_from_centre;
+                std::deque<Eigen::VectorXd> waypoints{starting, starting};
+
+                // Define robot radius and colour here.
+                float robot_radius = globals.ROBOT_RADIUS;
+                Color robot_color = ColorFromHSV(i * 360. / globals.NUM_ROBOTS, 1., 0.75);
+                int prev_rid = next_rid_ - 1;
+                robots_to_create.push_back(std::make_shared<Robot>(this, next_rid_++, waypoints, robot_radius, robot_color, false, prev_rid, 1));
+            }
+        }
+
+        if (!robots_.empty())
+        {
+            // Update the follower robots to follow the node in front of them
+            for (int i = 1; i <= globals.NUM_ROBOTS; i++) // Update loop condition to follow 20 robots
+            {
+                auto target = robots_.at(i - 1);
+                auto follower = robots_.at(i);
+                Eigen::VectorXd offset_from_target = Eigen::VectorXd{{0., 0., 0., 0.}};
+                follower->waypoints_[0] = target->position_ - offset_from_target;
+            }
+        }
+    }
     else if (globals.FORMATION == "highway")
     {
         new_robots_needed_ = true; // This is needed so that more robots can be created as the simulation progresses.
         if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
         {
-            int n_roads = 2; // Adjusted to match the highway configuration
-            int road = random_int(0, n_roads - 1);
+            int n_roads = 2;                      // Adjusted to match the highway configuration
+            int road = (next_rid_ / 2) % n_roads; // Switch road after every 2 robots
             int n_lanes = 2;
             double lane_width = 4.0 * globals.ROBOT_RADIUS;
             double road_length = globals.WORLD_SZ;        // Length of each road
@@ -1758,7 +1820,6 @@ void Simulator::createOrDeleteRobots()
                 int follower_index = master_index + 1;
                 auto master = robots_.at(master_index);
                 auto follower = robots_.at(follower_index);
-
                 // Set the follower's waypoint to the master's current position
                 follower->waypoints_[0] = master->position_;
             }
@@ -1776,7 +1837,7 @@ void Simulator::createOrDeleteRobots()
             for (int group = 0; group < num_groups; group++)
             {
                 int n_roads = 2; // Adjusted to match the highway configuration
-                int road = random_int(0, n_roads - 1);
+                int road = group % 2;
                 int n_lanes = 2;
                 double lane_width = 4.0 * globals.ROBOT_RADIUS;
                 double road_length = globals.WORLD_SZ;        // Length of each road
@@ -1888,7 +1949,7 @@ void Simulator::createOrDeleteRobots()
         // Robot count and time
         if (clock_ % 20 == 0 && next_rid_ < globals.NUM_ROBOTS)
         {
-            int robots_per_full_group = 3; // Master + 2 followers
+            int robots_per_full_group = 2; // Master + 2 followers
             int num_full_groups = globals.NUM_ROBOTS / robots_per_full_group;
             int remaining_robots = globals.NUM_ROBOTS % robots_per_full_group;
             int total_groups = num_full_groups + (remaining_robots > 0 ? 1 : 0);
@@ -2035,6 +2096,7 @@ void Simulator::createOrDeleteRobots()
     // Create and/or delete the robots as necessary.
     for (auto robot : robots_to_create)
     {
+        std::cout << "robot: " << robot->rid_ << " master: " << robot->master_id_ << std::endl;
         robot_positions_[robot->rid_] = std::vector<double>{robot->waypoints_[0](0), robot->waypoints_[0](1)};
         robots_[robot->rid_] = robot;
         if (!robot->isMaster_)
